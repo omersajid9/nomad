@@ -9,7 +9,9 @@
 # with the comments written for a lowering author instead of the kernel-line annotations.
 #
 # Device parameters are not part of the program: copy chunk width, mma shape and operand rules,
-# barrier scope and tier capacities come from the DeviceSpec, whose keys are listed in §10.
+# barrier scope and tier capacities come from the DeviceSpec, whose keys are listed in §10. A target
+# without an asynchronous copy engine still accepts this document: `async: true` is realized
+# synchronously and still signals its slot once the data lands (§8).
 #
 # Reading guide:
 #   tile              the only place tile sizes are written; every other expression references it.

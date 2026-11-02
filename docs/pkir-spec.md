@@ -16,6 +16,15 @@ compile down into regions of the form specified here. The design decisions recor
 traceable to the literature annotated in [`docs/refs/index.md`](refs/index.md), which lists the spec
 section each paper motivates.
 
+Portability contract (the body is device-agnostic): the document form, the step sequence, the slot
+edges, the slice and role names, and the semantics of every capability op are device-independent.
+What is not device-independent is the `DeviceSpec`, each capability's realization (§4), and the
+device's own limits. A region written for one device is valid on another once that device's
+`placement` block is supplied or omitted (§3's fallback rule) and its capacities admit the schedule
+(§6). `tile`, `stages` and buffer `stride` are schedule decisions, not device parameters: retargeting
+may re-tune them for the target, but it never edits the step sequence and never weakens a slot edge.
+A capability the target lacks changes an op's realization, not the region's meaning (§8).
+
 Scope of v0.1: exactly the constructs exercised by the QKV projection region of the fused attention
 block — tile GEMM, staging, a two-stage pipeline, roles, slot edges and affine slices. §9 states the
 widening contract for everything else the block needs (RMSNorm, SDPA with online softmax, out-proj).
@@ -265,6 +274,9 @@ Any lowering — CUDA now, NKI later — must preserve, for a validated region:
 
 - every declared slot edge, emitted at least as strong as declared (no dropped barrier, no reordered
   publication);
+- a capability the target lacks realized by the synchronous form of the same op: without an
+  asynchronous copy engine, `async: true` becomes a synchronous copy that still signals the slot once
+  the data lands — weaker overlap, never weaker ordering;
 - pads and masks never weakened: `pad: zero` stays a zero fill, `mask: true` stays a bounds check;
 - buffer `stride` values, so the operand assumptions (`ldm` multiple, alignment) hold;
 - capability ops realized by the §4 realization for the target device, or by a stronger one;
