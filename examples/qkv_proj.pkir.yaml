@@ -1,0 +1,103 @@
+# PKIR v0.1 program — QKV projection: Y[M,N] = X[M,K] * W[N,K]^T, fp16 operands, fp32 accumulate,
+# fp16 output. One 64x64 output tile per block; K is streamed in 32-wide tiles through a two-stage
+# shared-memory pipeline; each of the four warps accumulates a 32x32 sub-tile on tensor cores.
+#
+# Normative semantics live in docs/pkir-spec.md: §3 defines the objects used below, §4 the
+# capability ops and their contracts, §5 the obligations a verifier checks, §6 the cost hooks, §8
+# what any lowering must preserve. The same document appears in §7 of that file, which is the
+# normative listing; this file carries the identical content so tooling can load it directly,
+# with the comments written for a lowering author instead of the kernel-line annotations.
+#
+# Device parameters are not part of the program: copy chunk width, mma shape and operand rules,
+# barrier scope and tier capacities come from the DeviceSpec, whose keys are listed in §10.
+#
+# Reading guide:
+#   tile              the only place tile sizes are written; every other expression references it.
+#   grid.bm/grid.bn   block-index extents along M and N. The lowering chooses which block index
+#                     carries each extent and the host launch matches that choice.
+#   roles             `move` steps copy between tiers, `matrix` steps run tensor-core work. With
+#                     `specialize: false` every warp executes every step in program order, so the
+#                     thread map implied by `placement` distributes the tile work, not the roles.
+#   buffers           `tier` is the memory tier; `stages` makes the buffer a slot array addressed
+#                     `A[kt]` = stage `kt mod stages`; `stride` is the row stride in elements and
+#                     includes bank-conflict padding that the lowering must preserve.
+#   copy              moves a half-open rectangular slice `[r0 : r1, c0 : c1]`, row-major.
+#                     `pad: zero` reads out-of-extent source elements as zero; `mask: true`
+#                     predicates stores on the destination extent; `async: true` selects the
+#                     device's asynchronous copy engine; `cast: f16` rounds once, nearest-even.
+#   wait/signal       slot states. `full` is produced-then-consumed, `free` consumed-then-produced,
+#                     symmetrically for the asynchronous engine; `free` holds initially. Every read
+#                     waits `full`, every write waits `free`, and a signal is a release that all
+#                     participants of the waiting role acquire.
+#   matmul            `acc += a * b^T` into a register-tier buffer with fp16 operands and fp32
+#                     accumulation. `placement.<device>.warp_tile.mma` is the per-warp accumulator
+#                     tile, which the device mma shape must divide ([16,16,16] on sm86), and operand
+#                     leading dimensions must satisfy the device rule.
+#   assume            a precondition on the caller: a caller violating it is a host-side error, not
+#                     undefined behavior.
+#
+# Checking a lowering of this document: run it over the (M, K, N) table in tests/gpu/test_qkv_tile.py
+# and compare against the fp32 PyTorch reference at atol = rtol = 2e-2. The file
+# tests/gpu/qkv_tile_kernel.cu is a hand-written CUDA realization of the same region.
+pkir: 0
+kernel: qkv_proj
+params: [M, N, K]
+assume: ["K % 8 == 0"]
+tensors:
+  X: {shape: [M, K], dtype: f16}
+  W: {shape: [N, K], dtype: f16}
+  Y: {shape: [M, N], dtype: f16, out: true}
+tile: {m: 64, n: 64, k: 32}
+grid: {bm: "ceil(M / tile.m)", bn: "ceil(N / tile.n)"}
+roles:
+  load: {kind: move}
+  mma: {kind: matrix}
+buffers:
+  A: {tier: shared, shape: [tile.m, tile.k], dtype: f16, stages: 2, stride: [tile.k + 8, 1]}
+  B: {tier: shared, shape: [tile.n, tile.k], dtype: f16, stages: 2, stride: [tile.k + 8, 1]}
+  acc: {tier: register, shape: [tile.m, tile.n], dtype: f32}
+  C: {tier: shared, shape: [tile.m, tile.n], dtype: f32, stride: [tile.n + 4, 1]}
+placement:
+  sm86: {warps: 4, specialize: false, warp_tile: {mma: [tile.m / 2, tile.n / 2]}}
+body:
+  - fill: {role: mma, dst: acc, value: 0.0}
+  - for:
+      var: kt
+      trips: "ceil(K / tile.k)"
+      body:
+        - copy:
+            role: load
+            src: "X[bm*tile.m : bm*tile.m + tile.m, kt*tile.k : kt*tile.k + tile.k]"
+            dst: "A[kt]"
+            pad: zero
+            async: true
+            wait: [A.free]
+            signal: [A.full]
+        - copy:
+            role: load
+            src: "W[bn*tile.n : bn*tile.n + tile.n, kt*tile.k : kt*tile.k + tile.k]"
+            dst: "B[kt]"
+            pad: zero
+            async: true
+            wait: [B.free]
+            signal: [B.full]
+        - matmul:
+            role: mma
+            acc: acc
+            a: "A[kt]"
+            b: "B[kt]"
+            transpose_b: true
+            wait: [A.full, B.full]
+            signal: [A.free, B.free]
+  - copy:
+      role: mma
+      src: acc
+      dst: C
+      signal: [C.full]
+  - copy:
+      role: load
+      src: C
+      dst: "Y[bm*tile.m : bm*tile.m + tile.m, bn*tile.n : bn*tile.n + tile.n]"
+      cast: f16
+      mask: true
+      wait: [C.full]

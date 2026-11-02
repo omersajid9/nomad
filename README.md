@@ -12,8 +12,9 @@ CS 521 (Fall 2026) final project — Hemank Kohli, Omer Sajid.
 Proposal: [docs/proposal.pdf](docs/proposal.pdf).
 
 **Status: spec and references landed.** PKIR v0.1 is specified in [docs/pkir-spec.md](docs/pkir-spec.md)
-with the I1 QKV projection document as its worked example, and the annotated reference store is in
-[docs/refs/](docs/refs/index.md); implementation, device specs and schemas have not landed yet.
+with the I1 QKV projection document as its worked example, shipped for tooling as
+[`examples/qkv_proj.pkir.yaml`](examples/qkv_proj.pkir.yaml); the annotated reference store is in
+[docs/refs/](docs/refs/index.md). Implementation, device specs and schemas have not landed yet.
 
 ## Layout
 

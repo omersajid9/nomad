@@ -74,7 +74,10 @@ Field semantics:
 - `tile`: `{m: 64, n: 64, k: 32}` — the only place tile sizes are written; every other expression
   references `tile.m`, `tile.n` or `tile.k`.
 - `grid`: `{bm: "ceil(M / tile.m)", bn: "ceil(N / tile.n)"}` — block-index extents along M and N.
-  `bm` and `bn` are in scope inside `body`; `grid.bm × grid.bn` is the launch's block count.
+  `bm` and `bn` are in scope inside `body`; `grid.bm × grid.bn` is the launch's block count. The
+  lowering chooses which block index carries `bm` and which carries `bn`, and the host launch must
+  match that choice; the reference realization uses `bm = blockIdx.y` and `bn = blockIdx.x`
+  (`tests/gpu/qkv_tile_kernel.cu:87,158`).
 - `roles`: name → `{kind: move|matrix}`. `move` copies between tiers; `matrix` runs tensor-core work.
   `reduce` and `elementwise` are reserved names not specified in v0.1. Role membership is a placement
   decision: with `specialize: false` every warp executes every role's steps in program order.
@@ -160,7 +163,9 @@ is `(tile.m + tile.n) · tile.k · 2 B = 8,192 B`; the epilogue writes `64 × 64
 The I1 document. It is the normative example of the v0.1 form: the region is the QKV projection GEMM
 `Y[M,N] = X[M,K]·W[N,K]ᵀ` (fp16 in, fp32 accumulate, fp16 out) — the QKV stage of the fused attention
 block — whose CUDA realization is the oracle at `tests/gpu/qkv_tile_kernel.cu`. Comments name the
-kernel lines each fragment comes from.
+kernel lines each fragment comes from. The same document ships as `examples/qkv_proj.pkir.yaml` for
+tooling to load, with comments written for a lowering author; `tests/unit/test_pkir_examples.py`
+keeps the file and this listing equal.
 
 ```yaml
 # PKIR v0.1 — QKV projection region (integration point I1).
