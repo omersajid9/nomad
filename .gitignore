@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.venv/
+
+# Tooling caches
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Raw experiment output (curated tables/figures are committed under experiments/)
+results/
+
+# Generated kernel and toolchain artifacts
+*.cubin
+*.ptx
+*.sass
+*.neff
+*.ntff
+.neuron/
+
+# Editor / OS
+.DS_Store
+.env

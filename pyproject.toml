@@ -1,0 +1,44 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "nomad"
+description = "Device-agnostic, verifier-in-the-loop agentic kernel compiler"
+readme = "README.md"
+requires-python = ">=3.11"
+dynamic = ["version"]
+dependencies = [
+  "numpy>=2.0",
+  "pydantic>=2.7",
+  "pyyaml>=6.0",
+  "torch>=2.4",
+]
+
+[dependency-groups]
+dev = [
+  "pytest>=8.0",
+  "ruff>=0.6",
+]
+
+[tool.hatch.version]
+path = "src/nomad/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/nomad"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--strict-markers"
+markers = [
+  "gpu: requires an NVIDIA GPU and the CUDA toolchain (skipped in CI)",
+  "nki: requires a Linux x86_64 Neuron/NKI environment (skipped in CI)",
+  "slow: minutes-scale test, opt in explicitly",
+]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "B", "I", "UP"]
