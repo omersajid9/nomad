@@ -16,16 +16,16 @@ import pytest
 import torch
 from torch.utils.cpp_extension import load
 
+from nomad.difftest.harness import time_ms
+from nomad.reference.block import SHAPES as BLOCK_SHAPES
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 pytestmark = pytest.mark.gpu
 
 # (M, K, N): M = batch * seq tokens, K = hidden size D, N = 3 * D for a fused QKV projection.
-# Replace the first four with your reference block's shape table.
+# The first rows come from the reference block's shape table.
 SHAPES = [
-    (128, 1024, 3072),
-    (1024, 1024, 3072),
-    (4096, 1024, 3072),
-    (2048, 2048, 6144),
+    *dict.fromkeys(s.qkv_gemm for s in BLOCK_SHAPES),
     # Ragged edges: M and N not multiples of the 64x64 tile, K a multiple of 8 but not of 32.
     (1000, 1000, 3000),
     (77, 264, 200),
@@ -55,19 +55,6 @@ def make_inputs(M, K, N, seed=0):
     x = torch.randn(M, K, device="cuda", dtype=torch.float16, generator=g)
     w = torch.randn(N, K, device="cuda", dtype=torch.float16, generator=g) / K**0.5
     return x, w
-
-
-def time_ms(fn, iters=100, warmup=10):
-    for _ in range(warmup):
-        fn()
-    start, end = torch.cuda.Event(enable_timing=True), torch.cuda.Event(enable_timing=True)
-    torch.cuda.synchronize()
-    start.record()
-    for _ in range(iters):
-        fn()
-    end.record()
-    torch.cuda.synchronize()
-    return start.elapsed_time(end) / iters
 
 
 @pytest.mark.parametrize("M,K,N", SHAPES)
