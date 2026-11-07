@@ -73,7 +73,7 @@ Field semantics:
   `Y [M, N] f16` with `out: true`.
 - `tile`: `{m: 64, n: 64, k: 32}` — the only place tile sizes are written; every other expression
   references `tile.m`, `tile.n` or `tile.k`.
-- `grid`: `{bm: "ceil(M / tile.m)", bn: "ceil(N / tile.n)"}` — block-index extents along M and N.
+- `grid`: `{bm: "ceil_div(M, tile.m)", bn: "ceil_div(N, tile.n)"}` — block-index extents along M and N.
   `bm` and `bn` are in scope inside `body`; `grid.bm × grid.bn` is the launch's block count. The
   lowering chooses which block index carries `bm` and which carries `bn`, and the host launch must
   match that choice; the reference realization uses `bm = blockIdx.y` and `bn = blockIdx.x`
@@ -179,7 +179,7 @@ tensors:
   W: {shape: [N, K], dtype: f16}                        # L144-150: w[N,K], nn.Linear weight layout
   Y: {shape: [M, N], dtype: f16, out: true}
 tile: {m: 64, n: 64, k: 32}                             # L30: BM, BN, BK
-grid: {bm: "ceil(M / tile.m)", bn: "ceil(N / tile.n)"}  # L158-159: grid.y, grid.x
+grid: {bm: "ceil_div(M, tile.m)", bn: "ceil_div(N, tile.n)"}  # L158-159: grid.y, grid.x
 roles:
   load: {kind: move}                                    # L9-12, L57-75: loader and storer
   mma: {kind: matrix}                                   # L10, L111-124: 4 warps, 2x2 WMMA tiles each
@@ -194,7 +194,7 @@ body:
   - fill: {role: mma, dst: acc, value: 0.0}             # L90-94: fill_fragment(acc, 0)
   - for:                                                # L99-126: K-tile pipeline + MMA loop
       var: kt
-      trips: "ceil(K / tile.k)"                         # L88: k_tiles
+      trips: "ceil_div(K, tile.k)"                         # L88: k_tiles
       body:
         - copy:                                         # L61-67: load_stage, X half
             role: load

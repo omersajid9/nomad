@@ -48,7 +48,7 @@ tensors:
   W: {shape: [N, K], dtype: f16}
   Y: {shape: [M, N], dtype: f16, out: true}
 tile: {m: 64, n: 64, k: 32}
-grid: {bm: "ceil(M / tile.m)", bn: "ceil(N / tile.n)"}
+grid: {bm: "ceil_div(M, tile.m)", bn: "ceil_div(N, tile.n)"}
 roles:
   load: {kind: move}
   mma: {kind: matrix}
@@ -63,7 +63,7 @@ body:
   - fill: {role: mma, dst: acc, value: 0.0}
   - for:
       var: kt
-      trips: "ceil(K / tile.k)"
+      trips: "ceil_div(K, tile.k)"
       body:
         - copy:
             role: load
