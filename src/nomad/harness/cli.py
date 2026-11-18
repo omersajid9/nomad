@@ -7,7 +7,14 @@ import json
 import sys
 from pathlib import Path
 
-from nomad.agent.driver import AgentError, OpenAICompleter, run_agent
+from nomad.agent.driver import (
+    OPENROUTER_ENDPOINT,
+    OPENROUTER_MODEL,
+    AgentError,
+    OpenAICompleter,
+    OpenRouterCompleter,
+    run_agent,
+)
 from nomad.cost.model import estimate
 from nomad.devicespec.spec import load_device_from_path
 from nomad.graph.catalog import load_catalog
@@ -153,13 +160,26 @@ def _cmd_lower(args: argparse.Namespace) -> int:
 
 
 def _cmd_agent(args: argparse.Namespace) -> int:
-    completer = OpenAICompleter(
-        args.endpoint,
-        args.model,
-        api_key=args.api_key,
-        max_tokens=args.max_tokens,
-        temperature=args.temperature,
-    )
+    try:
+        if args.endpoint == OPENROUTER_ENDPOINT:
+            completer = OpenRouterCompleter(
+                args.endpoint,
+                args.model,
+                api_key=args.api_key,
+                max_tokens=args.max_tokens,
+                temperature=args.temperature,
+            )
+        else:
+            completer = OpenAICompleter(
+                args.endpoint,
+                args.model,
+                api_key=args.api_key,
+                max_tokens=args.max_tokens,
+                temperature=args.temperature,
+            )
+    except AgentError as exc:
+        _print_error(str(exc))
+        return 2
     try:
         result = run_agent(
             args.run_dir,
@@ -192,9 +212,21 @@ def build_parser() -> argparse.ArgumentParser:
 
     agent = sub.add_parser("agent", help="drive an OpenAI-compatible model against a workspace")
     agent.add_argument("run_dir")
-    agent.add_argument("--endpoint", required=True, help="e.g. http://127.0.0.1:8081/v1")
-    agent.add_argument("--model", required=True)
-    agent.add_argument("--api-key", default=None)
+    agent.add_argument(
+        "--endpoint",
+        default=OPENROUTER_ENDPOINT,
+        help=f"OpenAI-compatible base URL (default: {OPENROUTER_ENDPOINT})",
+    )
+    agent.add_argument(
+        "--model",
+        default=OPENROUTER_MODEL,
+        help=f"model id (default: {OPENROUTER_MODEL})",
+    )
+    agent.add_argument(
+        "--api-key",
+        default=None,
+        help="OpenRouter key; defaults to OPENROUTER_API_KEY for the OpenRouter endpoint",
+    )
     agent.add_argument("--upto", choices=["G0", "G1", "G2", "G3", "G4", "G5"], default="G1")
     agent.add_argument("--max-steps", type=int, default=8)
     agent.add_argument("--max-tokens", type=int, default=4096)

@@ -129,19 +129,22 @@ with the result.
 ## 7. Optional: run the agent loop
 
 The driver speaks the OpenAI-compatible chat protocol and only accepts edits to `plan.yaml` and
-`kernels/*.pkir.yaml`.
+`kernels/*.pkir.yaml`. Its defaults are OpenRouter and `deepseek/deepseek-v4-flash`; the key is
+read from `OPENROUTER_API_KEY` and is never written to the workspace or a log.
 
 ```sh
+export OPENROUTER_API_KEY=...   # your OpenRouter key; do not commit it
 AGENT_RUN=results/runs/gpu-agent
 uv run nomad init qkv_proj "$AGENT_RUN" --start unfused
 
 uv run nomad agent "$AGENT_RUN" \
-  --endpoint http://127.0.0.1:8081/v1 \
-  --model /path/to/model \
   --upto G1 \
   --max-steps 4 \
   --max-tokens 8192
 ```
+
+To use a different OpenRouter model, pass `--model`; to use a local OpenAI-compatible endpoint,
+pass both `--endpoint` and `--model` (and `--api-key` if it requires one).
 
 For a repair run, first make the kernel invalid and let the model see the diagnostic:
 
@@ -155,7 +158,7 @@ d["tile"]["bad"] = 1
 p.write_text(yaml.safe_dump(d, sort_keys=False))
 PY
 uv run nomad check "$AGENT_RUN" --upto G1   # P-UNKNOWN-KEY
-uv run nomad agent "$AGENT_RUN" --endpoint ... --model ... --upto G1 --max-steps 4
+uv run nomad agent "$AGENT_RUN" --upto G1 --max-steps 4
 ```
 
 The agent driver itself is independent of model quality. The local 2.9B reasoning model can
@@ -186,6 +189,7 @@ Expected result: rejected at `static` with four `S-UNSUPPORTED` diagnostics for 
 | `S-CAPACITY` / `L-RESOURCE` | tile/stage footprint is too large | reduce `stages`, `tile.m` or `tile.n` in the PKIR document |
 | `S-UNSUPPORTED` on the block | expected PKIR v0.2 gap | only the linear groups are in v0 scope |
 | `S-SLICE` after an agent edit | the model returned a bad slice | the diagnostic is localized; repair the file or reset from `--start unfused` |
+| `401 User not found` from OpenRouter | the key is a provisioning/management key, not an inference key | create an inference key in OpenRouter and put it in `OPENROUTER_API_KEY` |
 
 ## 10. What to record
 

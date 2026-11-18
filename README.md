@@ -64,9 +64,9 @@ uv run nomad cost results/runs/001 --group qkv_proj
 uv run nomad explore results/runs/002          # feasible rewrite subsets x orders
 uv run python experiments/single_pass.py --task qkv_proj --run results/runs/pass-qkv
 
-# Drive a local OpenAI-compatible model through the harness
-uv run nomad agent results/runs/001 --endpoint http://127.0.0.1:8081/v1 \
-  --model /path/to/model --upto G1 --max-steps 4
+# Drive the agent through OpenRouter (default model: deepseek/deepseek-v4-flash)
+export OPENROUTER_API_KEY=...   # never commit the key
+uv run nomad agent results/runs/001 --upto G1 --max-steps 4
 ```
 
 Python stays at 3.11 (safe intersection of the Neuron SDK and PyTorch); `uv.lock` is committed.

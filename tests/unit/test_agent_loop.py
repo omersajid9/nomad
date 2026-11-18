@@ -5,8 +5,10 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
 import yaml
 
+from nomad.agent.driver import AgentError, OpenRouterCompleter
 from nomad.graph.ingest import graph_from_export
 from nomad.harness.check import run_check
 from nomad.harness.workspace import init_run, submit
@@ -113,3 +115,17 @@ def test_init_from_attention_export(tmp_path):
     code, report = run_check(run, upto="G1")
     assert code == 1
     assert any(diag.code == "S-UNSUPPORTED" for diag in report.diagnostics)
+
+
+def test_openrouter_defaults(monkeypatch):
+    monkeypatch.setenv("OPENROUTER_API_KEY", "test-key")
+    completer = OpenRouterCompleter()
+    assert completer.url == "https://openrouter.ai/api/v1/chat/completions"
+    assert completer.model == "deepseek/deepseek-v4-flash"
+    assert completer.extra_headers["X-Title"] == "NOMAD"
+
+
+def test_openrouter_requires_key(monkeypatch):
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+    with pytest.raises(AgentError, match="OPENROUTER_API_KEY"):
+        OpenRouterCompleter()

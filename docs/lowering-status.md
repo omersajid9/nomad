@@ -14,7 +14,7 @@
 | G2 | slot-discipline verifier (`V-*`) checks async/full/free and epilogue edges |
 | G4 | builds the lowered extension and compares each shape to `F.linear`; `D-*` diagnostics |
 | G5 | CUDA-event timing and speedup; cost estimate on hosts without hardware |
-| agent | `nomad agent` drives an OpenAI-compatible model through the file-update protocol |
+| agent | `nomad agent` defaults to OpenRouter + `deepseek/deepseek-v4-flash` through the file-update protocol |
 
 The QKV region is admitted through **G3 on a CPU checkout** (source generated; PTX if `nvcc`
 exists). **G4/G5 require the `sm86` GPU box**; on this Mac G4 returns `D-UNAVAILABLE`, not a fake
@@ -23,7 +23,7 @@ pass.
 ## Verified here
 
 ```text
-uv run pytest -m "not gpu and not nki"  ->  71 passed
+uv run pytest -m "not gpu and not nki"  ->  73 passed
 G2 (canonical qkv)                      ->  admitted
 G3 (canonical qkv)                      ->  lowered/qkv_proj.cu, 37,888 B shared, 128 threads
 G4 (this Mac)                           ->  D-UNAVAILABLE (no CUDA runtime)
@@ -48,5 +48,5 @@ for `nvcc -ptx`.
    block-level latency, portability and ± gates ablations await full-block lowering.
 6. **Agent reliability.** The local 2.9B reasoning model completes a scaffold edit/repair, but
    its full-file rewrite of the GEMM template produced an invalid slice in a manual trial. The
-   driver correctly rejected it and preserved diagnostics; this is a model/protocol limitation,
-   not a gate bypass.
+   default now points at OpenRouter `deepseek/deepseek-v4-flash`; the driver still rejects any
+   malformed response with a located diagnostic, never a silent edit.

@@ -2,7 +2,8 @@
 
 The agent never writes Python, CUDA or NKI: it returns YAML patches for `plan.yaml` and
 `kernels/*.pkir.yaml`, and the harness runs the gate stack. This keeps the same driver usable with
-any OpenAI-compatible endpoint, including the local reasoning model used on the laptop.
+any OpenAI-compatible endpoint. `nomad agent` defaults to OpenRouter and
+`deepseek/deepseek-v4-flash`; a local endpoint can still be selected explicitly.
 
 Response format (one or more blocks):
 
@@ -20,6 +21,7 @@ silent edit.
 from __future__ import annotations
 
 import json
+import os
 import re
 import urllib.error
 import urllib.request
@@ -37,6 +39,10 @@ _UPDATE = re.compile(
     re.MULTILINE | re.DOTALL,
 )
 _ALLOWED = re.compile(r"^(plan\.yaml|kernels/[A-Za-z_][A-Za-z0-9_.-]*\.pkir\.yaml)$")
+
+OPENROUTER_ENDPOINT = "https://openrouter.ai/api/v1"
+OPENROUTER_MODEL = "deepseek/deepseek-v4-flash"
+OPENROUTER_API_KEY_ENV = "OPENROUTER_API_KEY"
 
 
 class AgentError(RuntimeError):
@@ -194,6 +200,7 @@ class OpenAICompleter:
         max_tokens: int = 4096,
         temperature: float = 0.0,
         timeout: float = 180.0,
+        extra_headers: dict[str, str] | None = None,
     ) -> None:
         endpoint = endpoint.rstrip("/")
         self.url = (
@@ -204,6 +211,7 @@ class OpenAICompleter:
         self.max_tokens = max_tokens
         self.temperature = temperature
         self.timeout = timeout
+        self.extra_headers = dict(extra_headers or {})
         self.tokens_used = 0
 
     def __call__(self, prompt: str) -> str:
@@ -222,7 +230,7 @@ class OpenAICompleter:
             "temperature": self.temperature,
             "max_tokens": self.max_tokens,
         }
-        headers = {"Content-Type": "application/json"}
+        headers = {"Content-Type": "application/json", **self.extra_headers}
         if self.api_key:
             headers["Authorization"] = f"Bearer {self.api_key}"
         request = urllib.request.Request(
@@ -234,6 +242,20 @@ class OpenAICompleter:
         try:
             with urllib.request.urlopen(request, timeout=self.timeout) as response:
                 body = json.loads(response.read().decode("utf-8"))
+        except urllib.error.HTTPError as exc:
+            detail = ""
+            try:
+                detail = exc.read().decode("utf-8", errors="replace")
+            except Exception:
+                pass
+            hint = ""
+            if exc.code == 401:
+                hint = (
+                    " OpenRouter rejected the key. A provisioning/management key cannot call "
+                    "/chat/completions; create an inference key and put it in "
+                    "OPENROUTER_API_KEY."
+                )
+            raise AgentError(f"model request failed ({exc.code}): {detail[:300]}{hint}") from exc
         except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as exc:
             raise AgentError(f"model request failed: {exc}") from exc
         usage = body.get("usage") or {}
@@ -251,3 +273,40 @@ class OpenAICompleter:
 
     def tokens(self) -> int:
         return self.tokens_used
+
+
+class OpenRouterCompleter(OpenAICompleter):
+    """OpenRouter client with the project defaults and attribution headers.
+
+    The key is read from ``OPENROUTER_API_KEY`` when not supplied explicitly. It is never written
+    to a run workspace or log.
+    """
+
+    def __init__(
+        self,
+        endpoint: str = OPENROUTER_ENDPOINT,
+        model: str | None = None,
+        *,
+        api_key: str | None = None,
+        max_tokens: int = 4096,
+        temperature: float = 0.0,
+        timeout: float = 180.0,
+    ) -> None:
+        resolved = api_key or os.environ.get(OPENROUTER_API_KEY_ENV)
+        if not resolved:
+            raise AgentError(
+                f"{OPENROUTER_API_KEY_ENV} is not set; export the OpenRouter key before running "
+                "`nomad agent`"
+            )
+        super().__init__(
+            endpoint,
+            model or os.environ.get("OPENROUTER_MODEL") or OPENROUTER_MODEL,
+            api_key=resolved,
+            max_tokens=max_tokens,
+            temperature=temperature,
+            timeout=timeout,
+            extra_headers={
+                "HTTP-Referer": "https://github.com/omersajid9/nomad",
+                "X-Title": "NOMAD",
+            },
+        )
