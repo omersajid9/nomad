@@ -19,13 +19,13 @@ from dataclasses import dataclass
 from string import Template
 from typing import Any
 
+from nomad.devicespec.spec import DeviceSpec
 from nomad.lowering.common import LoweringError, const_int, to_cpp
 
 
 @dataclass(frozen=True)
 class CudaTarget:
-    """The DeviceSpec keys this template reads (pkir-spec §10). Stand-in until devices/sm86.yaml
-    and its loader land; then build this from the DeviceSpec instead of hard-coding it."""
+    """The DeviceSpec keys this template reads (pkir-spec §10)."""
 
     name: str = "sm86"
     arch: str = "86"
@@ -36,6 +36,35 @@ class CudaTarget:
     mma: tuple[int, int, int] = (16, 16, 16)  # capabilities.tensor_core_mma
     ldm_multiple_f16: int = 8
     ldm_multiple_f32: int = 4
+
+    @classmethod
+    def from_device(cls, device: DeviceSpec) -> CudaTarget:
+        """Read the sm86 lowering target from a DeviceSpec, or reject a non-CUDA device."""
+        if not device.arch.startswith("sm"):
+            raise LoweringError(
+                "L-TARGET", "", f"{device.name!r} is not an sm86-family CUDA device"
+            )
+        try:
+            arch = device.arch.removeprefix("sm")
+            mma = tuple(device.capabilities.tensor_core_mma.shapes[0])
+            shared = device.memory_tiers["shared"].max_per_block_bytes
+            chunk = device.copy_engines.chunk_bytes
+            ldm = device.capabilities.tensor_core_mma.ldm_multiple
+        except (AttributeError, IndexError, KeyError, TypeError) as exc:
+            raise LoweringError("L-TARGET", "", f"incomplete DeviceSpec: {exc}") from exc
+        if len(mma) != 3:
+            raise LoweringError("L-TARGET", "", "tensor_core_mma.shapes[0] must have three extents")
+        return cls(
+            name=device.name,
+            arch=arch,
+            threads_per_warp=device.runtime.threads_per_warp,
+            max_threads_per_block=device.runtime.threads_per_block_max,
+            static_shared_bytes=min(48 * 1024, shared or 48 * 1024),
+            chunk_bytes=chunk,
+            mma=(int(mma[0]), int(mma[1]), int(mma[2])),
+            ldm_multiple_f16=ldm,
+            ldm_multiple_f32=4,
+        )
 
 
 SM86 = CudaTarget()
@@ -262,6 +291,23 @@ class LoweredKernel:
             functions=[self.function],
             extra_cuda_cflags=list(self.cuda_cflags),
             verbose=False,
+        )
+
+    @property
+    def device_source(self) -> str:
+        """The anonymous-namespace device code only, suitable for `nvcc -ptx`.
+
+        The extension source includes torch's host wrapper; that translation unit cannot be
+        compiled to PTX on a machine without libtorch. The kernel and its helpers are device-only,
+        so strip the host half and supply the two CUDA headers the template uses.
+        """
+        start = self.source.index("namespace {")
+        end = self.source.index("}  // namespace") + len("}  // namespace")
+        return (
+            "#include <cuda_runtime.h>\n"
+            "#include <cuda_fp16.h>\n"
+            "#include <mma.h>\n"
+            "using namespace nvcuda;\n\n" + self.source[start:end] + "\n"
         )
 
 

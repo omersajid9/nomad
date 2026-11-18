@@ -1,0 +1,46 @@
+# sm86 device family, calibrated for an NVIDIA A40 (GA102).
+# Values are datasheet values; verify peak_flops on the CUDA box if timing is used.
+name: sm86
+model: a40
+arch: sm86
+runtime:
+  threads_per_warp: 32
+  warps_per_block_max: 32
+  threads_per_block_max: 1024
+  warps_per_sm_max: 48
+  sm_count: 84
+memory_tiers:
+  global:
+    capacity_bytes: 48000000000
+    alignment_bytes: 256
+  shared:
+    capacity_bytes: 102400   # usable shared memory per SM on GA102/A40 (100 KB)
+    max_per_block_bytes: 101376
+    alignment_bytes: 16
+  register:
+    capacity_bytes: 262144
+    alignment_bytes: 4
+copy_engines:
+  chunk_bytes: 16
+  element_bytes: 2
+  async: true
+  commit_groups: true
+  zero_fill_on_guard_false: true
+capabilities:
+  tensor_core_mma:
+    shapes: [[16, 16, 16]]
+    a: {dtype: f16, layout: row_major}
+    b: {dtype: f16, layout: col_major}
+    acc: f32
+    ldm_multiple: 8
+  convert:
+    pairs: [[f32, f16]]
+    rounding: nearest_even
+sync:
+  barrier_scope: block
+  async_wait: group
+cost:
+  peak_flops:
+    f16: 1.497e14
+    f32: 3.74e13
+  bandwidth_bytes_s: 6.96e11

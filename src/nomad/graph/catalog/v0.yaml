@@ -1,0 +1,33 @@
+# Agent-facing catalog v0 (agent-contract §4). Entries are added by PR, never by the agent.
+version: 0
+patterns:
+  - id: single
+    ops: ["*"]
+    supported: true
+    note: One op. A single linear is the only pattern PKIR v0.1 can lower.
+  - id: norm_gemm
+    ops: [rmsnorm, linear]
+    supported: false
+    note: Needs a reduction and a row-scale epilogue (pkir-spec §9).
+  - id: attention
+    ops: [layout, sdpa, layout]
+    supported: false
+    note: Needs register-resident running softmax state (pkir-spec §9).
+  - id: attn_out
+    ops: [layout, sdpa, layout, linear]
+    supported: false
+    note: Stretch pattern; attention plus out-projection.
+rewrites:
+  - id: fold_norm_gain
+    description: linear(rmsnorm(x; g), W) -> linear(rmsnorm(x; 1), W * diag(g))
+  - id: norm_as_row_scale
+    description: linear(rmsnorm(x; 1), W) -> rowscale(linear(x, W), rsqrt(mean(x^2) + eps))
+  - id: fold_attn_scale
+    description: scale q by 1/sqrt(D/H) -> scale the q rows of w_qkv once
+layouts:
+  qkv:
+    - "(b s) (t h d)"
+    - "t b h s d"
+  o:
+    - "b h s d"
+    - "b s h d"

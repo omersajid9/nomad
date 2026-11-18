@@ -41,7 +41,7 @@ source of truth for the schema that the agent sees.
 Normative conventions:
 
 - one YAML document per program; aliases, anchors, tags and multi-document streams are errors;
-- keys are `snake_case`; role, buffer and tensor names match `[a-z][a-z0-9_]*`;
+- keys are `snake_case`; role, buffer and tensor names match `[A-Za-z][A-Za-z0-9_]*`;
 - `pkir` is an integer revision, `0` for this draft;
 - flow style for leaf mappings and block style for lists, as in the §7 listing, so documents follow
   one formatting;
@@ -119,7 +119,8 @@ Step kinds:
   buffer. Slices, trip counts and `wait`/`signal` slots are the only places expressions appear.
 - Expression and name rules: integer literals; `params`; `tile.*`; grid ids and in-scope loop
   variables (`bm`, `bn`, `kt`, and the loop variable of any enclosing `for`); `+ - * / %`,
-  `ceil_div(a, b)`, `min`, `max`, comparisons, `&&`, `||`, `!`, parentheses. `/` and `%` are floor
+  `ceil_div(a, b)`, `min`, `max`, comparisons, `&&`, `||`, `!`, parentheses. `/` and `%`
+  are floor
   division on non-negative operands, and every operand is declared non-negative. An undeclared name,
   or a bound that is not affine in declared names, is a schema error reporting its line.
 

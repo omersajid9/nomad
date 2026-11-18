@@ -14,6 +14,7 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 from functools import cache, partial
+from typing import Any
 
 import torch
 import torch.nn.functional as F
@@ -118,3 +119,60 @@ def compiled(x: torch.Tensor, p: BlockParams, shape: BlockShape) -> torch.Tensor
 
 
 BASELINES = {"eager": block, "sdpa": partial(block, attention="sdpa"), "compile": compiled}
+
+
+def graph_qkv_proj() -> dict[str, Any]:
+    return {
+        "graph": "qkv_proj",
+        "params": ["M", "K", "N"],
+        "assume": ["K % 8 == 0"],
+        "tensors": {
+            "x": {"shape": ["M", "K"], "dtype": "f16"},
+            "w": {"shape": ["N", "K"], "dtype": "f16", "weight": True},
+            "y": {"shape": ["M", "N"], "dtype": "f16", "out": True},
+        },
+        "ops": [{"id": "qkv_proj", "kind": "linear", "in": ["x", "w"], "out": ["y"]}],
+    }
+
+
+def graph_attention_block() -> dict[str, Any]:
+    return {
+        "graph": "attention_block",
+        "params": ["B", "S", "D", "H"],
+        "assume": ["D % H == 0"],
+        "tensors": {
+            "x": {"shape": ["B * S", "D"], "dtype": "f16"},
+            "g": {"shape": ["D"], "dtype": "f16", "weight": True},
+            "w_qkv": {"shape": ["3 * D", "D"], "dtype": "f16", "weight": True},
+            "w_o": {"shape": ["D", "D"], "dtype": "f16", "weight": True},
+            "h": {"shape": ["B * S", "D"], "dtype": "f16"},
+            "qkv": {"shape": ["B * S", "3 * D"], "dtype": "f16"},
+            "q": {"shape": ["B", "H", "S", "D / H"], "dtype": "f16"},
+            "k": {"shape": ["B", "H", "S", "D / H"], "dtype": "f16"},
+            "v": {"shape": ["B", "H", "S", "D / H"], "dtype": "f16"},
+            "o": {"shape": ["B", "H", "S", "D / H"], "dtype": "f16"},
+            "o2": {"shape": ["B * S", "D"], "dtype": "f16"},
+            "y": {"shape": ["B * S", "D"], "dtype": "f16", "out": True},
+        },
+        "ops": [
+            {"id": "norm", "kind": "rmsnorm", "in": ["x", "g"], "out": ["h"], "eps": 1.0e-6},
+            {"id": "qkv", "kind": "linear", "in": ["h", "w_qkv"], "out": ["qkv"]},
+            {"id": "split", "kind": "layout", "in": ["qkv"], "out": ["q", "k", "v"]},
+            {"id": "attn", "kind": "sdpa", "in": ["q", "k", "v"], "out": ["o"], "causal": False},
+            {"id": "merge", "kind": "layout", "in": ["o"], "out": ["o2"]},
+            {"id": "out", "kind": "linear", "in": ["o2", "w_o"], "out": ["y"]},
+        ],
+    }
+
+
+TASK_SHAPES = {
+    "qkv_v0": [
+        {"M": 128, "K": 1024, "N": 3072},
+        {"M": 1000, "K": 1000, "N": 3000},
+        {"M": 1, "K": 64, "N": 64},
+    ],
+    "block_v0": [
+        {"B": 2, "S": 77, "D": 1024, "H": 16},
+        {"B": 1, "S": 8, "D": 256, "H": 8},
+    ],
+}
