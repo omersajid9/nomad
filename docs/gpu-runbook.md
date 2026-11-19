@@ -181,7 +181,7 @@ Expected result: rejected at `static` with four `S-UNSUPPORTED` diagnostics for 
 ## 9. Troubleshooting
 
 | symptom | meaning | action |
-|---|---|---|
+| --- | --- | --- |
 | `D-UNAVAILABLE` | `torch.cuda.is_available()` is false | check the driver installation and that `uv run python` sees the GPU |
 | `L-TOOLCHAIN` | no `nvcc` found | add the CUDA toolkit to `PATH`, or set `CUDA_HOME` |
 | `L-COMPILE` | generated CUDA failed to compile | read `lowered/GROUP.ptx.cu`; run `nvcc -ptx -arch=sm_86 -O3 -std=c++17` manually |
