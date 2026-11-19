@@ -1,0 +1,1877 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NOMAD — Midterm</title>
+<meta name="description" content="NOMAD: a device-agnostic, verifier-in-the-loop agentic kernel compiler. Midterm presentation.">
+<script>document.documentElement.classList.add("js");</script>
+<style>
+  :root {
+    --bg: #070a10;
+    --bg-2: #0b1119;
+    --panel: rgba(15, 23, 35, 0.82);
+    --panel-solid: #101723;
+    --panel-2: #151f2e;
+    --line: rgba(148, 163, 184, 0.16);
+    --line-strong: rgba(148, 163, 184, 0.3);
+    --text: #e9eff8;
+    --muted: #96a6ba;
+    --faint: #5d6b7d;
+    --amber: #f4b544;
+    --amber-soft: rgba(244, 181, 68, 0.13);
+    --teal: #2dd4bf;
+    --teal-soft: rgba(45, 212, 191, 0.12);
+    --blue: #65a9ff;
+    --blue-soft: rgba(101, 169, 255, 0.12);
+    --green: #4ade80;
+    --green-soft: rgba(74, 222, 128, 0.12);
+    --red: #fb7185;
+    --red-soft: rgba(251, 113, 133, 0.12);
+    --violet: #c084fc;
+    --violet-soft: rgba(192, 132, 252, 0.12);
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, system-ui, sans-serif;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+    --radius: 18px;
+    --sidebar: 248px;
+    --top: 58px;
+    --shadow: 0 24px 80px rgba(0, 0, 0, 0.34);
+  }
+
+  [data-theme="light"] {
+    --bg: #f7f4ee;
+    --bg-2: #efeae1;
+    --panel: rgba(255, 255, 255, 0.82);
+    --panel-solid: #ffffff;
+    --panel-2: #f0ece5;
+    --line: rgba(32, 42, 56, 0.14);
+    --line-strong: rgba(32, 42, 56, 0.28);
+    --text: #17202c;
+    --muted: #5d6a7a;
+    --faint: #8894a3;
+    --amber: #a96700;
+    --amber-soft: rgba(169, 103, 0, 0.1);
+    --teal: #087f75;
+    --teal-soft: rgba(8, 127, 117, 0.1);
+    --blue: #1f65c7;
+    --blue-soft: rgba(31, 101, 199, 0.1);
+    --green: #177a3d;
+    --green-soft: rgba(23, 122, 61, 0.1);
+    --red: #b4233b;
+    --red-soft: rgba(180, 35, 59, 0.1);
+    --violet: #7c3aed;
+    --violet-soft: rgba(124, 58, 237, 0.1);
+    --shadow: 0 24px 80px rgba(46, 38, 24, 0.12);
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    color: var(--text);
+    background:
+      radial-gradient(1100px 700px at 85% -10%, rgba(244, 181, 68, 0.09), transparent 60%),
+      radial-gradient(900px 700px at -10% 15%, rgba(45, 212, 191, 0.07), transparent 55%),
+      linear-gradient(180deg, var(--bg), var(--bg-2));
+    font-family: var(--sans);
+    font-size: 16px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.35;
+    background-image:
+      linear-gradient(rgba(148, 163, 184, 0.035) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(148, 163, 184, 0.035) 1px, transparent 1px);
+    background-size: 48px 48px;
+    mask-image: radial-gradient(ellipse at 50% 0%, #000 0%, transparent 75%);
+  }
+  ::selection { background: var(--amber); color: #151006; }
+  a { color: var(--teal); text-decoration: none; }
+  a:hover { text-decoration: underline; text-underline-offset: 3px; }
+  button, input { font: inherit; }
+  button { color: inherit; }
+  code, pre, .mono { font-family: var(--mono); }
+  code {
+    font-size: 0.9em;
+    color: var(--amber);
+    background: var(--amber-soft);
+    border: 1px solid rgba(244, 181, 68, 0.15);
+    border-radius: 6px;
+    padding: 0.08em 0.35em;
+  }
+  h1, h2, h3, h4 { margin: 0; line-height: 1.15; letter-spacing: -0.025em; }
+  p { margin: 0; }
+  ul { margin: 0; padding-left: 1.2rem; }
+  li { margin: 0.3rem 0; }
+
+  .skip {
+    position: absolute;
+    left: -999px;
+    top: 8px;
+    z-index: 999;
+    background: var(--amber);
+    color: #151006;
+    padding: 8px 12px;
+    border-radius: 8px;
+  }
+  .skip:focus { left: 8px; }
+
+  .reading-progress {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 3px;
+    z-index: 120;
+    background: transparent;
+  }
+  .reading-progress span {
+    display: block;
+    width: 0;
+    height: 100%;
+    background: linear-gradient(90deg, var(--teal), var(--amber), var(--red));
+    box-shadow: 0 0 18px rgba(244, 181, 68, 0.6);
+    transition: width 80ms linear;
+  }
+
+  .topbar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: var(--top);
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+    border-bottom: 1px solid var(--line);
+    background: color-mix(in srgb, var(--bg) 82%, transparent);
+    backdrop-filter: blur(18px);
+  }
+  .brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--text);
+    font-weight: 760;
+    letter-spacing: 0.12em;
+    font-size: 0.82rem;
+  }
+  .brand:hover { text-decoration: none; }
+  .brand-mark {
+    display: grid;
+    place-items: center;
+    width: 26px;
+    height: 26px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, var(--amber), var(--red));
+    color: #160f06;
+    font-size: 0.8rem;
+    font-weight: 900;
+    box-shadow: 0 0 24px rgba(244, 181, 68, 0.28);
+  }
+  .topbar-mid {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--muted);
+    font-size: 0.78rem;
+    font-family: var(--mono);
+  }
+  .live-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--green);
+    box-shadow: 0 0 0 4px var(--green-soft), 0 0 14px var(--green);
+  }
+  .topbar-actions { display: flex; align-items: center; gap: 8px; }
+  .icon-btn, .text-btn {
+    appearance: none;
+    border: 1px solid var(--line);
+    background: var(--panel);
+    color: var(--muted);
+    border-radius: 9px;
+    padding: 7px 11px;
+    cursor: pointer;
+    transition: 160ms ease;
+    font-size: 0.78rem;
+    font-family: var(--mono);
+  }
+  .icon-btn:hover, .text-btn:hover {
+    border-color: var(--line-strong);
+    color: var(--text);
+    background: var(--panel-2);
+    transform: translateY(-1px);
+  }
+  .icon-btn[aria-pressed="true"] {
+    color: var(--amber);
+    border-color: rgba(244, 181, 68, 0.4);
+    background: var(--amber-soft);
+  }
+  .nav-toggle { display: none; }
+
+  .shell {
+    display: flex;
+    min-height: 100vh;
+    padding-top: var(--top);
+  }
+  .sidebar {
+    position: fixed;
+    top: var(--top);
+    bottom: 0;
+    left: 0;
+    width: var(--sidebar);
+    padding: 28px 18px 24px;
+    border-right: 1px solid var(--line);
+    background: color-mix(in srgb, var(--bg) 72%, transparent);
+    backdrop-filter: blur(18px);
+    overflow-y: auto;
+    z-index: 80;
+  }
+  .side-kicker {
+    font-family: var(--mono);
+    font-size: 0.64rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--faint);
+    margin: 0 10px 12px;
+  }
+  .side-nav { display: grid; gap: 3px; }
+  .side-nav a {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: 9px;
+    color: var(--muted);
+    font-size: 0.84rem;
+    border: 1px solid transparent;
+    transition: 150ms ease;
+  }
+  .side-nav a:hover { color: var(--text); background: var(--panel); text-decoration: none; }
+  .side-nav a.active {
+    color: var(--text);
+    background: var(--panel);
+    border-color: var(--line);
+  }
+  .side-nav a.active .nav-num { color: var(--amber); }
+  .nav-num {
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    color: var(--faint);
+    min-width: 1.7em;
+  }
+  .side-foot {
+    margin-top: 28px;
+    padding: 14px;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: linear-gradient(160deg, var(--panel), transparent);
+  }
+  .side-foot p { color: var(--muted); font-size: 0.76rem; }
+  .side-foot strong { color: var(--text); font-weight: 600; }
+  .side-foot .mono { color: var(--amber); font-size: 0.7rem; }
+
+  main {
+    width: min(1180px, calc(100% - var(--sidebar)));
+    margin-left: var(--sidebar);
+    padding: 34px 42px 100px;
+  }
+  section { scroll-margin-top: calc(var(--top) + 26px); padding: 54px 0 26px; }
+  .section-head {
+    display: grid;
+    grid-template-columns: 48px minmax(0, 1fr) auto;
+    gap: 16px;
+    align-items: start;
+    margin-bottom: 24px;
+  }
+  .section-num {
+    font-family: var(--mono);
+    color: var(--amber);
+    font-size: 0.78rem;
+    padding-top: 7px;
+  }
+  .section-head h2 { font-size: clamp(1.7rem, 2.7vw, 2.35rem); }
+  .section-head .lede {
+    max-width: 58ch;
+    color: var(--muted);
+    font-size: 0.95rem;
+    margin-top: 7px;
+  }
+  .section-tag {
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    color: var(--faint);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 5px 9px;
+    white-space: nowrap;
+  }
+
+  .hero {
+    position: relative;
+    overflow: hidden;
+    margin-top: 8px;
+    padding: 64px 48px 42px;
+    border: 1px solid var(--line);
+    border-radius: 26px;
+    background:
+      radial-gradient(700px 400px at 95% 0%, rgba(244, 181, 68, 0.13), transparent 65%),
+      radial-gradient(600px 400px at 10% 100%, rgba(45, 212, 191, 0.08), transparent 65%),
+      linear-gradient(145deg, var(--panel-solid), color-mix(in srgb, var(--panel-solid) 75%, transparent));
+    box-shadow: var(--shadow);
+  }
+  .hero::after {
+    content: "";
+    position: absolute;
+    width: 420px;
+    height: 420px;
+    right: -120px;
+    top: -160px;
+    border-radius: 50%;
+    border: 1px solid rgba(244, 181, 68, 0.16);
+    box-shadow: 0 0 0 50px rgba(244, 181, 68, 0.025), 0 0 0 100px rgba(244, 181, 68, 0.015);
+    pointer-events: none;
+  }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--amber);
+    margin-bottom: 18px;
+  }
+  .hero h1 {
+    font-size: clamp(3.4rem, 9vw, 7rem);
+    font-weight: 760;
+    letter-spacing: -0.06em;
+    line-height: 0.9;
+    background: linear-gradient(105deg, var(--text) 22%, var(--amber) 58%, var(--red) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .hero-sub {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-top: 12px;
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 0.77rem;
+  }
+  .hero-sub .sep { color: var(--faint); }
+  .thesis {
+    max-width: 58ch;
+    margin-top: 22px;
+    font-size: clamp(1.08rem, 1.6vw, 1.3rem);
+    line-height: 1.55;
+    color: color-mix(in srgb, var(--text) 92%, var(--muted));
+  }
+  .thesis em { color: var(--amber); font-style: normal; }
+  .hero-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 26px; }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    border: 1px solid var(--line);
+    background: var(--panel);
+    color: var(--text);
+    border-radius: 11px;
+    padding: 10px 14px;
+    cursor: pointer;
+    font-size: 0.82rem;
+    font-family: var(--mono);
+    transition: 160ms ease;
+  }
+  .btn:hover {
+    border-color: var(--line-strong);
+    transform: translateY(-1px);
+    background: var(--panel-2);
+    text-decoration: none;
+  }
+  .btn.primary {
+    background: linear-gradient(135deg, var(--amber), #e58c2f);
+    color: #1b1307;
+    border-color: transparent;
+    font-weight: 700;
+  }
+  .btn.primary:hover { box-shadow: 0 12px 32px rgba(244, 181, 68, 0.22); }
+  .metrics {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+    margin-top: 36px;
+  }
+  .metric {
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 14px 15px;
+    background: color-mix(in srgb, var(--panel) 72%, transparent);
+  }
+  .metric-value {
+    font-family: var(--mono);
+    font-size: clamp(1.35rem, 2.3vw, 1.85rem);
+    font-weight: 650;
+    color: var(--text);
+    letter-spacing: -0.04em;
+  }
+  .metric-label {
+    color: var(--muted);
+    font-size: 0.72rem;
+    margin-top: 4px;
+  }
+  .metric:nth-child(1) .metric-value { color: var(--green); }
+  .metric:nth-child(2) .metric-value { color: var(--amber); }
+  .metric:nth-child(3) .metric-value { color: var(--teal); }
+  .metric:nth-child(4) .metric-value { color: var(--red); }
+
+  .callout {
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--amber);
+    border-radius: 0 14px 14px 0;
+    background: linear-gradient(90deg, var(--amber-soft), transparent 70%);
+    padding: 16px 18px;
+    color: var(--muted);
+    font-size: 0.92rem;
+  }
+  .callout strong { color: var(--text); }
+  .callout.warning { border-left-color: var(--red); background: linear-gradient(90deg, var(--red-soft), transparent 70%); }
+  .callout.good { border-left-color: var(--green); background: linear-gradient(90deg, var(--green-soft), transparent 70%); }
+
+  .gap-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+  .gap-card {
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 20px;
+    background: linear-gradient(160deg, var(--panel), transparent);
+  }
+  .gap-card .kicker {
+    font-family: var(--mono);
+    color: var(--red);
+    font-size: 0.65rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+  .gap-card h3 { font-size: 1.05rem; margin-top: 8px; }
+  .gap-card p { color: var(--muted); font-size: 0.86rem; margin-top: 8px; }
+
+  .example {
+    display: grid;
+    grid-template-columns: 1.15fr 0.85fr;
+    gap: 16px;
+    margin-top: 18px;
+  }
+  .example-card {
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--panel);
+    padding: 20px;
+  }
+  .example-card h3 { font-size: 1rem; margin-bottom: 10px; }
+  .example-card p { color: var(--muted); font-size: 0.86rem; }
+  .kv {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 6px 14px;
+    margin-top: 12px;
+    font-family: var(--mono);
+    font-size: 0.74rem;
+  }
+  .kv dt { color: var(--muted); }
+  .kv dd { margin: 0; color: var(--text); text-align: right; }
+
+  .pipeline-shell {
+    border: 1px solid var(--line);
+    border-radius: 22px;
+    background: linear-gradient(160deg, var(--panel), transparent);
+    padding: 20px;
+  }
+  .pipeline {
+    display: flex;
+    gap: 7px;
+    overflow-x: auto;
+    padding: 4px 2px 14px;
+    scrollbar-width: thin;
+  }
+  .stage {
+    flex: 1 0 122px;
+    position: relative;
+    border: 1px solid var(--line);
+    background: var(--panel-solid);
+    border-radius: 13px;
+    padding: 13px 12px 12px;
+    text-align: left;
+    cursor: pointer;
+    transition: 160ms ease;
+    min-height: 92px;
+  }
+  .stage:hover { border-color: var(--line-strong); transform: translateY(-2px); }
+  .stage.active {
+    border-color: rgba(244, 181, 68, 0.58);
+    background: linear-gradient(160deg, var(--amber-soft), var(--panel-solid));
+    box-shadow: 0 0 0 1px rgba(244, 181, 68, 0.12), 0 14px 30px rgba(0, 0, 0, 0.16);
+  }
+  .stage-index {
+    font-family: var(--mono);
+    font-size: 0.62rem;
+    color: var(--faint);
+  }
+  .stage.active .stage-index { color: var(--amber); }
+  .stage-name {
+    display: block;
+    margin-top: 5px;
+    font-weight: 670;
+    font-size: 0.84rem;
+    line-height: 1.2;
+  }
+  .stage-note {
+    display: block;
+    margin-top: 5px;
+    color: var(--muted);
+    font-size: 0.67rem;
+    line-height: 1.25;
+  }
+  .stage-arrow {
+    position: absolute;
+    right: -10px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--faint);
+    font-size: 0.8rem;
+    z-index: 2;
+    background: var(--bg);
+    padding: 1px;
+  }
+  .stage:last-child .stage-arrow { display: none; }
+
+  .stage-detail {
+    border-top: 1px solid var(--line);
+    padding-top: 20px;
+    display: grid;
+    grid-template-columns: minmax(0, 1.35fr) minmax(240px, 0.65fr);
+    gap: 20px;
+  }
+  .stage-detail h3 { font-size: 1.35rem; }
+  .stage-detail .status-line { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 8px 0 12px; }
+  .stage-detail p { color: var(--muted); font-size: 0.9rem; }
+  .stage-side {
+    border-left: 1px solid var(--line);
+    padding-left: 20px;
+  }
+  .stage-side h4 {
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.13em;
+    color: var(--faint);
+    margin-bottom: 8px;
+  }
+  .stage-side + .stage-side { margin-top: 16px; }
+  .stage-side p, .stage-side li { font-size: 0.8rem; color: var(--muted); }
+  .stage-side ul { padding-left: 1rem; }
+  .stage-side .mono { color: var(--amber); font-size: 0.72rem; }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border-radius: 999px;
+    padding: 4px 8px;
+    font-family: var(--mono);
+    font-size: 0.63rem;
+    letter-spacing: 0.02em;
+    border: 1px solid transparent;
+    white-space: nowrap;
+  }
+  .badge::before {
+    content: "";
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: currentColor;
+  }
+  .badge.works { color: var(--green); background: var(--green-soft); border-color: rgba(74, 222, 128, 0.18); }
+  .badge.partial { color: var(--amber); background: var(--amber-soft); border-color: rgba(244, 181, 68, 0.18); }
+  .badge.missing { color: var(--red); background: var(--red-soft); border-color: rgba(251, 113, 133, 0.18); }
+  .badge.info { color: var(--blue); background: var(--blue-soft); border-color: rgba(101, 169, 255, 0.18); }
+  .badge.violet { color: var(--violet); background: var(--violet-soft); border-color: rgba(192, 132, 252, 0.18); }
+
+  .component-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-top: 16px; }
+  .component {
+    border: 1px solid var(--line);
+    border-radius: 13px;
+    padding: 14px;
+    background: var(--panel);
+  }
+  .component .mono { font-size: 0.68rem; color: var(--amber); }
+  .component h3 { font-size: 0.88rem; margin-top: 7px; }
+  .component p { color: var(--muted); font-size: 0.75rem; margin-top: 5px; }
+
+  .gate-layout { display: grid; grid-template-columns: 210px minmax(0, 1fr); gap: 18px; }
+  .gate-rail { display: grid; gap: 7px; align-content: start; }
+  .gate-chip {
+    display: grid;
+    grid-template-columns: 42px 1fr auto;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    border: 1px solid var(--line);
+    background: var(--panel);
+    border-radius: 11px;
+    padding: 9px 10px;
+    cursor: pointer;
+    text-align: left;
+    transition: 150ms ease;
+  }
+  .gate-chip:hover { border-color: var(--line-strong); transform: translateX(2px); }
+  .gate-chip.active { border-color: rgba(244, 181, 68, 0.5); background: var(--amber-soft); }
+  .gate-id { font-family: var(--mono); font-size: 0.74rem; color: var(--amber); }
+  .gate-name { font-size: 0.8rem; color: var(--text); }
+  .gate-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--faint); }
+  .gate-chip[data-status="works"] .gate-dot { background: var(--green); box-shadow: 0 0 10px var(--green); }
+  .gate-chip[data-status="partial"] .gate-dot { background: var(--amber); box-shadow: 0 0 10px var(--amber); }
+  .gate-chip[data-status="missing"] .gate-dot { background: var(--red); box-shadow: 0 0 10px var(--red); }
+  .gate-detail {
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: linear-gradient(160deg, var(--panel), transparent);
+    padding: 22px;
+    min-height: 280px;
+  }
+  .gate-detail h3 { font-size: 1.3rem; }
+  .gate-detail .gate-question { color: var(--muted); margin-top: 4px; font-size: 0.86rem; }
+  .gate-detail p { color: var(--muted); font-size: 0.88rem; margin-top: 12px; }
+  .gate-codes { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
+  .gate-codes .mono { font-size: 0.68rem; border: 1px solid var(--line); border-radius: 6px; padding: 3px 6px; color: var(--text); background: var(--panel-2); }
+  .gate-now {
+    margin-top: 16px;
+    border-left: 2px solid var(--amber);
+    padding-left: 12px;
+    font-size: 0.83rem;
+    color: var(--text);
+  }
+  .gate-now span { display: block; color: var(--muted); font-size: 0.73rem; margin-top: 2px; }
+
+  .status-toolbar, .decision-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+  }
+  .filter-group { display: flex; gap: 6px; flex-wrap: wrap; }
+  .filter {
+    border: 1px solid var(--line);
+    background: var(--panel);
+    color: var(--muted);
+    border-radius: 999px;
+    padding: 6px 10px;
+    cursor: pointer;
+    font-family: var(--mono);
+    font-size: 0.68rem;
+  }
+  .filter.active { color: var(--text); border-color: var(--amber); background: var(--amber-soft); }
+  .status-list { display: grid; gap: 6px; }
+  .status-row {
+    display: grid;
+    grid-template-columns: minmax(180px, 1.2fr) 120px minmax(0, 2fr);
+    align-items: center;
+    gap: 14px;
+    border: 1px solid var(--line);
+    background: var(--panel);
+    border-radius: 11px;
+    padding: 11px 14px;
+    transition: 150ms ease;
+  }
+  .status-row:hover { border-color: var(--line-strong); }
+  .status-name { font-size: 0.86rem; font-weight: 560; }
+  .status-name span { display: block; font-family: var(--mono); font-size: 0.63rem; color: var(--faint); font-weight: 400; margin-top: 2px; }
+  .status-note { color: var(--muted); font-size: 0.76rem; }
+  .status-row[hidden] { display: none; }
+
+  .search-box {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border: 1px solid var(--line);
+    background: var(--panel);
+    border-radius: 10px;
+    padding: 7px 10px;
+    min-width: 230px;
+  }
+  .search-box input {
+    width: 100%;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    color: var(--text);
+    font-size: 0.8rem;
+  }
+  .search-box input::placeholder { color: var(--faint); }
+  .search-box .mono { color: var(--faint); font-size: 0.7rem; }
+
+  .decision-list { display: grid; gap: 8px; }
+  .decision {
+    border: 1px solid var(--line);
+    border-radius: 13px;
+    background: var(--panel);
+    overflow: hidden;
+  }
+  .decision[hidden] { display: none; }
+  .decision summary {
+    list-style: none;
+    display: grid;
+    grid-template-columns: 34px minmax(0, 1fr) auto 18px;
+    gap: 10px;
+    align-items: center;
+    padding: 13px 15px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .decision summary::-webkit-details-marker { display: none; }
+  .decision summary:hover { background: var(--panel-2); }
+  .decision summary::after { content: "+"; color: var(--faint); font-family: var(--mono); font-size: 0.85rem; justify-self: end; }
+  .decision[open] summary::after { content: "−"; }
+  .decision-num { font-family: var(--mono); font-size: 0.68rem; color: var(--amber); }
+  .decision-title { font-size: 0.9rem; font-weight: 560; }
+  .decision-title span { display: block; color: var(--faint); font-family: var(--mono); font-size: 0.62rem; font-weight: 400; margin-top: 2px; }
+  .decision-tag {
+    font-family: var(--mono);
+    font-size: 0.6rem;
+    border-radius: 999px;
+    padding: 3px 7px;
+    border: 1px solid var(--line);
+    color: var(--muted);
+  }
+  .decision[data-tag="load-bearing"] .decision-tag { color: var(--red); border-color: rgba(251, 113, 133, 0.24); background: var(--red-soft); }
+  .decision[data-tag="tunable"] .decision-tag { color: var(--teal); border-color: rgba(45, 212, 191, 0.24); background: var(--teal-soft); }
+  .decision[data-tag="convention"] .decision-tag { color: var(--blue); border-color: rgba(101, 169, 255, 0.24); background: var(--blue-soft); }
+  .decision-body {
+    border-top: 1px solid var(--line);
+    padding: 16px;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+    background: color-mix(in srgb, var(--bg) 30%, transparent);
+  }
+  .decision-block h4 {
+    font-family: var(--mono);
+    font-size: 0.62rem;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+    color: var(--faint);
+    margin-bottom: 5px;
+  }
+  .decision-block p { color: var(--muted); font-size: 0.8rem; }
+  .decision-block.strong p { color: var(--text); }
+
+  .blocker-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .blocker {
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 16px;
+    background: var(--panel);
+    position: relative;
+    overflow: hidden;
+  }
+  .blocker::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    background: var(--red);
+  }
+  .blocker[data-severity="resolved"]::before { background: var(--green); }
+  .blocker[data-severity="medium"]::before { background: var(--amber); }
+  .blocker .blocker-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .blocker h3 { font-size: 0.95rem; }
+  .blocker p { color: var(--muted); font-size: 0.8rem; margin-top: 8px; }
+  .blocker .severity {
+    font-family: var(--mono);
+    font-size: 0.6rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--red);
+  }
+  .blocker[data-severity="medium"] .severity { color: var(--amber); }
+  .blocker[data-severity="resolved"] .severity { color: var(--green); }
+
+  .timeline { display: grid; gap: 10px; }
+  .timeline-item {
+    display: grid;
+    grid-template-columns: 110px minmax(0, 1fr);
+    gap: 16px;
+    border: 1px solid var(--line);
+    border-radius: 13px;
+    padding: 14px 16px;
+    background: var(--panel);
+  }
+  .timeline-item .when { font-family: var(--mono); color: var(--amber); font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.06em; }
+  .timeline-item h3 { font-size: 0.92rem; }
+  .timeline-item p { color: var(--muted); font-size: 0.8rem; margin-top: 4px; }
+  .next-action {
+    margin-top: 18px;
+    border: 1px solid rgba(244, 181, 68, 0.35);
+    border-radius: 16px;
+    padding: 18px;
+    background: linear-gradient(120deg, var(--amber-soft), transparent 70%);
+  }
+  .next-action h3 { font-size: 1.05rem; }
+  .next-action p { color: var(--muted); font-size: 0.86rem; margin-top: 6px; }
+
+  .terminal {
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    overflow: hidden;
+    background: #070b11;
+    box-shadow: var(--shadow);
+  }
+  [data-theme="light"] .terminal { background: #17202c; }
+  .terminal-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 9px 12px;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.14);
+    background: rgba(148, 163, 184, 0.04);
+  }
+  .terminal-dots { display: flex; gap: 5px; }
+  .terminal-dots i { width: 7px; height: 7px; border-radius: 50%; background: #fb7185; display: block; }
+  .terminal-dots i:nth-child(2) { background: #f4b544; }
+  .terminal-dots i:nth-child(3) { background: #4ade80; }
+  .terminal-title { font-family: var(--mono); font-size: 0.65rem; color: #7f8da1; }
+  .copy {
+    border: 1px solid rgba(148, 163, 184, 0.22);
+    background: transparent;
+    color: #a8b7c9;
+    border-radius: 6px;
+    padding: 3px 7px;
+    cursor: pointer;
+    font-family: var(--mono);
+    font-size: 0.62rem;
+  }
+  .copy:hover { color: #fff; border-color: rgba(244, 181, 68, 0.6); }
+  .terminal pre {
+    margin: 0;
+    padding: 15px 16px 17px;
+    overflow-x: auto;
+    color: #d6e0ee;
+    font-size: 0.76rem;
+    line-height: 1.7;
+  }
+  .terminal pre .p { color: #4ade80; }
+  .terminal pre .c { color: #f4b544; }
+  .terminal pre .m { color: #7f8da1; }
+
+  .claim-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px; }
+  .claim {
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 16px;
+    background: var(--panel);
+  }
+  .claim h3 { font-size: 0.9rem; }
+  .claim ul { margin-top: 8px; padding-left: 1.1rem; }
+  .claim li { color: var(--muted); font-size: 0.78rem; }
+  .claim.good { border-top: 2px solid var(--green); }
+  .claim.bad { border-top: 2px solid var(--red); }
+
+  footer {
+    margin-top: 56px;
+    padding-top: 22px;
+    border-top: 1px solid var(--line);
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    color: var(--faint);
+    font-family: var(--mono);
+    font-size: 0.65rem;
+  }
+
+  .toast {
+    position: fixed;
+    left: 50%;
+    bottom: 24px;
+    transform: translate(-50%, 16px);
+    background: var(--panel-solid);
+    border: 1px solid var(--line-strong);
+    color: var(--text);
+    border-radius: 10px;
+    padding: 9px 14px;
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    opacity: 0;
+    pointer-events: none;
+    transition: 180ms ease;
+    z-index: 200;
+    box-shadow: var(--shadow);
+  }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+  body.focus-mode .sidebar { display: none; }
+  body.focus-mode main { width: min(1040px, calc(100% - 60px)); margin: 0 auto; }
+  body.focus-mode .topbar-mid { display: none; }
+  body.focus-mode .focus-exit { display: inline-flex; }
+  .focus-exit { display: none; }
+
+  .js .reveal { opacity: 0; transform: translateY(14px); transition: opacity 500ms ease, transform 500ms ease; }
+  .js .reveal.in { opacity: 1; transform: none; }
+
+  @media (max-width: 1120px) {
+    main { padding: 30px 26px 80px; }
+    .component-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+  @media (max-width: 900px) {
+    :root { --sidebar: 0px; }
+    .sidebar {
+      width: 270px;
+      transform: translateX(-105%);
+      transition: transform 180ms ease;
+      background: var(--panel-solid);
+    }
+    body.nav-open .sidebar { transform: none; box-shadow: var(--shadow); }
+    main { width: 100%; margin-left: 0; padding: 26px 20px 80px; }
+    .nav-toggle { display: inline-flex; }
+    .topbar-mid { display: none; }
+    .hero { padding: 42px 24px 30px; }
+    .section-head { grid-template-columns: 34px minmax(0, 1fr); }
+    .section-tag { display: none; }
+    .gap-grid { grid-template-columns: 1fr; }
+    .example { grid-template-columns: 1fr; }
+    .stage-detail { grid-template-columns: 1fr; }
+    .stage-side { border-left: 0; border-top: 1px solid var(--line); padding-left: 0; padding-top: 14px; }
+    .gate-layout { grid-template-columns: 1fr; }
+    .gate-rail { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .gate-chip { grid-template-columns: 1fr auto; }
+    .gate-name { display: none; }
+    .status-row { grid-template-columns: 1fr auto; }
+    .status-note { grid-column: 1 / -1; }
+    .blocker-grid { grid-template-columns: 1fr; }
+    .claim-grid { grid-template-columns: 1fr; }
+    .decision-body { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 560px) {
+    .topbar { padding: 0 12px; }
+    .brand { font-size: 0.72rem; }
+    .topbar-actions { gap: 5px; }
+    .text-btn { display: none; }
+    .hero h1 { font-size: 4rem; }
+    .metrics { grid-template-columns: 1fr 1fr; }
+    .gate-rail { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .timeline-item { grid-template-columns: 1fr; gap: 4px; }
+    .status-row { grid-template-columns: 1fr; }
+    .status-row .badge { justify-self: start; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    *, *::before, *::after { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+    .js .reveal { opacity: 1; transform: none; }
+  }
+  @media print {
+    .topbar, .sidebar, .reading-progress, .hero-actions, .copy, .toast, .filter, .search-box, .nav-toggle, .icon-btn { display: none !important; }
+    main { width: 100%; margin: 0; padding: 0; }
+    body { background: #fff; color: #111; }
+    .js .reveal { opacity: 1 !important; transform: none !important; }
+    .hero h1 { background: none; color: #111; -webkit-text-fill-color: #111; }
+    .terminal pre { color: #111; }
+    .terminal pre .p, .terminal pre .c, .terminal pre .m { color: #333; }
+    body::before { display: none; }
+    .hero, .gap-card, .example-card, .pipeline-shell, .component, .gate-detail, .status-row, .decision, .blocker, .timeline-item, .terminal, .claim { break-inside: avoid; box-shadow: none; background: #fff; color: #111; border-color: #ccc; }
+    .stage, .gate-chip, .filter { background: #fff; color: #111; }
+    .decision[open] .decision-body { display: grid; }
+    .decision-body { display: grid !important; }
+    .decision[hidden], .status-row[hidden] { display: grid !important; }
+  }
+</style>
+</head>
+<body>
+<a class="skip" href="#overview">Skip to content</a>
+<div class="reading-progress" aria-hidden="true"><span id="progressBar"></span></div>
+
+<header class="topbar">
+  <a class="brand" href="#overview" aria-label="NOMAD home">
+    <span class="brand-mark">N</span>
+    <span>NOMAD</span>
+  </a>
+  <div class="topbar-mid">
+    <span class="live-dot"></span>
+    <span>QKV vertical slice · G3 admitted on CPU</span>
+  </div>
+  <div class="topbar-actions">
+    <button class="icon-btn focus-exit" id="focusExit" type="button" title="Exit focus mode">Exit focus</button>
+    <button class="icon-btn" id="focusBtn" type="button" title="Toggle focus mode (F)" aria-pressed="false">Focus</button>
+    <button class="icon-btn" id="themeBtn" type="button" title="Toggle theme (T)">Light</button>
+    <button class="text-btn" id="printBtn" type="button" title="Print this page (P)">Print</button>
+    <button class="icon-btn nav-toggle" id="navToggle" type="button" aria-label="Open navigation" aria-expanded="false">Menu</button>
+  </div>
+</header>
+
+<div class="shell">
+  <aside class="sidebar" id="sidebar">
+    <p class="side-kicker">Midterm map</p>
+    <nav class="side-nav" aria-label="Sections">
+      <a href="#overview"><span class="nav-num">00</span> Overview</a>
+      <a href="#problem"><span class="nav-num">01</span> Problem</a>
+      <a href="#architecture"><span class="nav-num">02</span> Architecture</a>
+      <a href="#gates"><span class="nav-num">03</span> Gates</a>
+      <a href="#status"><span class="nav-num">04</span> Status</a>
+      <a href="#decisions"><span class="nav-num">05</span> Decisions</a>
+      <a href="#blockers"><span class="nav-num">06</span> Blockers</a>
+      <a href="#remaining"><span class="nav-num">07</span> Remaining</a>
+      <a href="#demo"><span class="nav-num">08</span> Demo</a>
+    </nav>
+    <div class="side-foot">
+      <p><strong>Current claim</strong></p>
+      <p style="margin-top:5px">One QKV region is end to end. The full block is blocked by four missing PKIR constructs.</p>
+      <p style="margin-top:10px" class="mono">73 CPU tests · 20 skipped</p>
+    </div>
+  </aside>
+
+  <main>
+    <section id="overview" class="hero reveal">
+      <div class="eyebrow">CS 521 · Fall 2026 · Midterm</div>
+      <h1>NOMAD</h1>
+      <div class="hero-sub">
+        <span>device-agnostic</span><span class="sep">/</span>
+        <span>verifier-in-the-loop</span><span class="sep">/</span>
+        <span>agentic kernel compiler</span>
+      </div>
+      <p class="thesis">
+        One coding agent makes the <em>device-independent</em> decisions for a fused attention
+        block. A portable IR and an ordered gate stack decide whether the result is admitted.
+        Only the <em>DeviceSpec</em> changes between NVIDIA and Trainium.
+      </p>
+      <div class="hero-actions">
+        <a class="btn primary" href="#architecture">Walk the pipeline</a>
+        <a class="btn" href="#status">See what works</a>
+        <a class="btn" href="#demo">Demo commands</a>
+      </div>
+      <div class="metrics">
+        <div class="metric"><div class="metric-value">73</div><div class="metric-label">CPU tests passing</div></div>
+        <div class="metric"><div class="metric-value">22,933</div><div class="metric-label">bytes of PTX emitted</div></div>
+        <div class="metric"><div class="metric-value">37,888</div><div class="metric-label">bytes shared per QKV block</div></div>
+        <div class="metric"><div class="metric-value">4</div><div class="metric-label">full-block regions still unsupported</div></div>
+      </div>
+    </section>
+
+    <section id="problem" class="reveal">
+      <div class="section-head">
+        <div class="section-num">01</div>
+        <div>
+          <h2>The problem</h2>
+          <p class="lede">Agentic kernel generation is active, but three gaps keep it from being a compiler.</p>
+        </div>
+        <div class="section-tag">why this matters</div>
+      </div>
+      <div class="gap-grid">
+        <article class="gap-card">
+          <div class="kicker">Gap 01</div>
+          <h3>Single-vendor agents</h3>
+          <p>The compiler-agent CAKE is NVIDIA-only. TritorX targets one ASIC. AWS's NKI agent needs a Trainium device in the loop. None retargets from a declarative hardware description.</p>
+        </article>
+        <article class="gap-card">
+          <div class="kicker">Gap 02</div>
+          <h3>Kernel-level, not graph-level</h3>
+          <p>Fusion, data layout and rewrite synthesis move end-to-end performance. These decisions usually sit outside the agent's action space.</p>
+        </article>
+        <article class="gap-card">
+          <div class="kicker">Gap 03</div>
+          <h3>Correctness is empirical</h3>
+          <p>Kernels are admitted by <code>allclose</code> or OpInfo tests. Audits find test-passing kernels that are still broken. Formal checkers are offline and NVIDIA-specific.</p>
+        </article>
+      </div>
+      <div class="example">
+        <div class="example-card">
+          <h3>The concrete example: QKV</h3>
+          <p>The vertical slice is one tiled GEMM. It is small enough to finish, and it exposes the whole design.</p>
+          <dl class="kv">
+            <dt>x</dt><dd>[128, 1024] fp16</dd>
+            <dt>w</dt><dd>[3072, 1024] fp16</dd>
+            <dt>y</dt><dd>[128, 3072] fp16</dd>
+            <dt>tile</dt><dd>64 × 64 × 32</dd>
+            <dt>threads</dt><dd>128 · 4 warps</dd>
+            <dt>shared</dt><dd>37,888 B</dd>
+            <dt>occupancy</dt><dd>2 blocks / SM</dd>
+          </dl>
+        </div>
+        <div class="example-card">
+          <h3>Why this block</h3>
+          <p>It has a graph, a plan, a PKIR document, a lowering, a PTX artifact, a differential test and a timing result.</p>
+          <p style="margin-top:10px">It also has a real semantic failure mode. Drop <code>pad: zero</code> and the last K-tile reads out of bounds. G1 still accepts it. G4 is the gate that catches it.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="architecture" class="reveal">
+      <div class="section-head">
+        <div class="section-num">02</div>
+        <div>
+          <h2>Architecture</h2>
+          <p class="lede">The agent never writes device code. The harness owns lowering, execution and admission.</p>
+        </div>
+        <div class="section-tag">click a stage</div>
+      </div>
+      <div class="pipeline-shell">
+        <div class="pipeline" id="pipeline" role="tablist" aria-label="NOMAD pipeline stages"></div>
+        <div class="stage-detail" id="stageDetail" aria-live="polite"></div>
+      </div>
+      <div class="component-grid">
+        <div class="component"><div class="mono">DeviceSpec</div><h3>Hardware facts</h3><p>Memory tiers, copy engines, MMA shapes, sync, cost constants.</p></div>
+        <div class="component"><div class="mono">PKIR</div><h3>Portable program</h3><p>Tiles, buffers, roles, stages, sync edges, capabilities.</p></div>
+        <div class="component"><div class="mono">Harness</div><h3>Gate stack</h3><p>Workspace, diagnostics, lowering, snapshots, CLI.</p></div>
+        <div class="component"><div class="mono">Agent</div><h3>Graph decisions</h3><p>Fusion, layouts, rewrites and tile choices. No CUDA.</p></div>
+      </div>
+    </section>
+
+    <section id="gates" class="reveal">
+      <div class="section-head">
+        <div class="section-num">03</div>
+        <div>
+          <h2>The gate stack</h2>
+          <p class="lede">Each gate answers one question. A failure stops the stack and returns a located diagnostic.</p>
+        </div>
+        <div class="section-tag">G0 → G5</div>
+      </div>
+      <div class="gate-layout">
+        <div class="gate-rail" id="gateRail" role="tablist" aria-label="Gate stack"></div>
+        <div class="gate-detail" id="gateDetail" aria-live="polite"></div>
+      </div>
+    </section>
+
+    <section id="status" class="reveal">
+      <div class="section-head">
+        <div class="section-num">04</div>
+        <div>
+          <h2>Current status</h2>
+          <p class="lede">What is real, what is partial, and what is still a claim on paper.</p>
+        </div>
+        <div class="section-tag">filter</div>
+      </div>
+      <div class="status-toolbar">
+        <div class="filter-group" id="statusFilters">
+          <button class="filter active" data-filter="all" type="button">All</button>
+          <button class="filter" data-filter="works" type="button">Works</button>
+          <button class="filter" data-filter="partial" type="button">Partial</button>
+          <button class="filter" data-filter="missing" type="button">Missing</button>
+        </div>
+        <div class="search-box"><span class="mono">/</span><input id="statusSearch" type="search" placeholder="Find a component…" aria-label="Filter status rows"></div>
+      </div>
+      <div class="status-list" id="statusList"></div>
+    </section>
+
+    <section id="decisions" class="reveal">
+      <div class="section-head">
+        <div class="section-num">05</div>
+        <div>
+          <h2>Design decisions</h2>
+          <p class="lede">The choices that change correctness, speed or the scope of the claim.</p>
+        </div>
+        <div class="section-tag">12 records</div>
+      </div>
+      <div class="decision-toolbar">
+        <div class="filter-group" id="decisionFilters">
+          <button class="filter active" data-filter="all" type="button">All</button>
+          <button class="filter" data-filter="load-bearing" type="button">Load-bearing</button>
+          <button class="filter" data-filter="tunable" type="button">Tunable</button>
+          <button class="filter" data-filter="convention" type="button">Convention</button>
+        </div>
+        <div class="search-box"><span class="mono">/</span><input id="decisionSearch" type="search" placeholder="Search decisions…" aria-label="Search design decisions"></div>
+      </div>
+      <div class="decision-list" id="decisionList"></div>
+    </section>
+
+    <section id="blockers" class="reveal">
+      <div class="section-head">
+        <div class="section-num">06</div>
+        <div>
+          <h2>Blockers</h2>
+          <p class="lede">The honest list. This is what a good midterm says out loud.</p>
+        </div>
+        <div class="section-tag">risk register</div>
+      </div>
+      <div class="blocker-grid">
+        <article class="blocker" data-severity="critical">
+          <div class="blocker-top"><h3>The full block is not expressible in PKIR v0.1</h3><span class="severity">critical</span></div>
+          <p>RMSNorm, layout, SDPA and merge need reductions, <code>exp</code>/<code>rsqrt</code>, running softmax state, layout steps and masks. G1 rejects all four groups with <code>S-UNSUPPORTED</code>.</p>
+        </article>
+        <article class="blocker" data-severity="critical">
+          <div class="blocker-top"><h3>No GPU validation yet</h3><span class="severity">critical</span></div>
+          <p>G4 and G5 are implemented but have not run on the RTX 3070/A40. On the Mac, G4 returns <code>D-UNAVAILABLE</code>. The GPU test is ready.</p>
+        </article>
+        <article class="blocker" data-severity="critical">
+          <div class="blocker-top"><h3>G2 is not symbolic equivalence</h3><span class="severity">critical</span></div>
+          <p>G2 checks slot edges. It does not prove numeric equivalence. G4 samples the shape table. The proposal's soundness claim is not yet met.</p>
+        </article>
+        <article class="blocker" data-severity="critical">
+          <div class="blocker-top"><h3>NKI / Trainium is a stub</h3><span class="severity">critical</span></div>
+          <p>There is no <code>trn2.yaml</code> and no NKI lowering. Portability is an interface claim, not a measured result.</p>
+        </article>
+        <article class="blocker" data-severity="medium">
+          <div class="blocker-top"><h3>The agent is unreliable at large rewrites</h3><span class="severity">medium</span></div>
+          <p>The local 2.9B reasoning model failed on from-scratch generation and produced an invalid slice in a full-file repair. The driver rejected it. OpenRouter is now the default provider.</p>
+        </article>
+        <article class="blocker" data-severity="medium">
+          <div class="blocker-top"><h3>The graph adapter is not general</h3><span class="severity">medium</span></div>
+          <p>One bias-free linear and the reference attention block are recognized. Arbitrary models must supply <code>graph.yaml</code>.</p>
+        </article>
+        <article class="blocker" data-severity="medium">
+          <div class="blocker-top"><h3>Evaluation is incomplete</h3><span class="severity">medium</span></div>
+          <p>No block latency, no full mutation rerun under G2-G5, no portability run and no ablation.</p>
+        </article>
+        <article class="blocker" data-severity="resolved">
+          <div class="blocker-top"><h3>The lowering was not on main</h3><span class="severity">resolved</span></div>
+          <p>The CUDA GEMM template lived on a teammate branch. It is merged, tested on CPU and wired through G3.</p>
+        </article>
+      </div>
+      <div class="callout warning" style="margin-top:16px">
+        <strong>What not to claim:</strong> that the full block runs, that NOMAD is portable to Trainium, that the verifier is sound, or that it beats <code>torch.compile</code>. None of those has been measured.
+      </div>
+    </section>
+
+    <section id="remaining" class="reveal">
+      <div class="section-head">
+        <div class="section-num">07</div>
+        <div>
+          <h2>What remains</h2>
+          <p class="lede">The critical path is GPU numbers, then PKIR v0.2, then the full block.</p>
+        </div>
+        <div class="section-tag">next</div>
+      </div>
+      <div class="timeline">
+        <div class="timeline-item">
+          <div class="when">Next 48 hours</div>
+          <div><h3>Run G4/G5 on the GPU box</h3><p>Run <code>tests/gpu/test_pipeline_gpu.py</code> and record the differential errors and the geomean speedup.</p></div>
+        </div>
+        <div class="timeline-item">
+          <div class="when">Next week</div>
+          <div><h3>PKIR v0.2: reductions and layouts</h3><p>Add intra-tile reductions, broadcasts, <code>exp</code>/<code>rsqrt</code> and first-class layout steps. This unlocks RMSNorm and the split/merge groups.</p></div>
+        </div>
+        <div class="timeline-item">
+          <div class="when">After that</div>
+          <div><h3>Attention state and SDPA</h3><p>Running max/sum state, rescale and causal masks. This is the hardest region.</p></div>
+        </div>
+        <div class="timeline-item">
+          <div class="when">Then</div>
+          <div><h3>NKI, mutation study, ablations, report</h3><p>Portability, gate quality, kernel-only vs graph-level agent, and the ASPLOS-style report.</p></div>
+        </div>
+      </div>
+      <div class="next-action">
+        <h3>The single next action</h3>
+        <p>Run the GPU test. A source artifact and a PTX file prove lowering. They do not prove a working kernel. The GPU run turns the vertical slice into a result.</p>
+      </div>
+    </section>
+
+    <section id="demo" class="reveal">
+      <div class="section-head">
+        <div class="section-num">08</div>
+        <div>
+          <h2>Demo</h2>
+          <p class="lede">The safe laptop demo and the GPU demo. Copy either block.</p>
+        </div>
+        <div class="section-tag">commands</div>
+      </div>
+      <div class="terminal">
+        <div class="terminal-bar">
+          <div class="terminal-dots"><i></i><i></i><i></i></div>
+          <span class="terminal-title">laptop · CPU · G0-G3</span>
+          <button class="copy" data-copy="uv run nomad init qkv_proj results/runs/demo --start unfused
+uv run nomad check results/runs/demo --upto G3
+uv run nomad lower results/runs/demo
+sed -n '1,40p' results/runs/demo/lowered/qkv_proj.cu
+cat results/runs/demo/diagnostics/latest.json" type="button">copy</button>
+        </div>
+        <pre><span class="p">$</span> uv run nomad init qkv_proj results/runs/demo --start unfused
+<span class="p">$</span> uv run nomad check results/runs/demo --upto G3
+<span class="m"># admitted at lower</span>
+<span class="p">$</span> uv run nomad lower results/runs/demo
+<span class="p">$</span> sed -n '1,40p' results/runs/demo/lowered/qkv_proj.cu
+<span class="p">$</span> cat results/runs/demo/diagnostics/latest.json</pre>
+      </div>
+      <div class="terminal" style="margin-top:12px">
+        <div class="terminal-bar">
+          <div class="terminal-dots"><i></i><i></i><i></i></div>
+          <span class="terminal-title">GPU box · G4/G5</span>
+          <button class="copy" data-copy="uv run pytest -m gpu tests/gpu/test_qkv_tile.py tests/gpu/test_lowered_qkv.py -q
+uv run pytest -m gpu tests/gpu/test_pipeline_gpu.py -q
+uv run nomad check results/runs/gpu-qkv --upto G5
+uv run nomad submit results/runs/gpu-qkv" type="button">copy</button>
+        </div>
+        <pre><span class="p">$</span> uv run pytest -m gpu tests/gpu/test_qkv_tile.py tests/gpu/test_lowered_qkv.py -q
+<span class="p">$</span> uv run pytest -m gpu tests/gpu/test_pipeline_gpu.py -q
+<span class="p">$</span> uv run nomad check results/runs/gpu-qkv --upto G5
+<span class="p">$</span> uv run nomad submit results/runs/gpu-qkv</pre>
+      </div>
+      <div class="claim-grid">
+        <div class="claim good">
+          <h3>Say</h3>
+          <ul>
+            <li>QKV is end to end through G3 on CPU.</li>
+            <li>PTX is generated for <code>sm_86</code>.</li>
+            <li>G4/G5 are wired and waiting on the GPU.</li>
+            <li>The full block is blocked by PKIR v0.2, not gate wiring.</li>
+          </ul>
+        </div>
+        <div class="claim bad">
+          <h3>Do not say</h3>
+          <ul>
+            <li>The full attention block works.</li>
+            <li>The verifier is sound for all shapes.</li>
+            <li>NOMAD is portable to Trainium today.</li>
+            <li>It is faster than PyTorch.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      <span>NOMAD · CS 521 Fall 2026 · Hemank Kohli &amp; Omer Sajid</span>
+      <span><a href="gpu-runbook.md">GPU runbook</a> · <a href="midterm-brief.md">full brief</a> · <a href="pkir-spec.md">PKIR spec</a></span>
+      <span class="mono" style="font-size:0.6rem">T theme · F focus · P print · / search</span>
+    </footer>
+  </main>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<noscript><div class="callout warning" style="margin:20px">Enable JavaScript to use the interactive pipeline, gate explorer and decision filters. The static sections below still contain the full argument.</div></noscript>
+
+<script>
+  const stages = [
+    {
+      id: 'torch', name: 'PyTorch', note: 'module or reference',
+      status: 'works', statusLabel: 'working',
+      body: 'The graph adapter uses torch.export for one bias-free linear. For the reference attention block it recognizes the op sequence and emits the canonical graph. It does not guess arbitrary models.',
+      input: 'A PyTorch module or the canonical reference block.',
+      output: 'graph.yaml with tensor shapes and op order.',
+      files: ['src/nomad/reference/block.py', 'src/nomad/graph/ingest.py'],
+      command: 'uv run nomad init qkv_proj results/runs/demo --from-export tests/fixtures/export_qkv.py'
+    },
+    {
+      id: 'graph', name: 'Graph + plan', note: 'catalog rules',
+      status: 'works', statusLabel: 'working',
+      body: 'The plan partitions graph ops into groups. The catalog limits the allowed fusions, layouts and rewrites. The current catalog has four patterns, three rewrites and two layout families.',
+      input: 'graph.yaml plus catalog.yaml.',
+      output: 'plan.yaml with groups, layouts and ordered rewrites.',
+      files: ['src/nomad/graph/plan.py', 'src/nomad/graph/catalog/v0.yaml', 'src/nomad/graph/rewrites.py'],
+      command: 'uv run nomad explore results/runs/demo'
+    },
+    {
+      id: 'agent', name: 'Agent', note: 'edits files only',
+      status: 'partial', statusLabel: 'partial',
+      body: 'The agent sees task, graph, catalog, plan, kernels and diagnostics. It may edit only plan.yaml and kernels/*.pkir.yaml. It never writes CUDA or runs a compiler.',
+      input: 'The current workspace and the latest diagnostics.',
+      output: 'A complete YAML file update per response.',
+      files: ['src/nomad/agent/driver.py', 'docs/agent-contract.md'],
+      command: 'OPENROUTER_API_KEY=… uv run nomad agent results/runs/demo --upto G1'
+    },
+    {
+      id: 'pkir', name: 'PKIR', note: 'portable region',
+      status: 'works', statusLabel: 'working',
+      body: 'PKIR v0.1 is tile-level. It has fill, copy, for and matmul steps. It has explicit buffers, roles, placement and sync slots. The QKV region uses 37,888 bytes of shared memory.',
+      input: 'A plan group and a scaffold or agent-authored region.',
+      output: 'One kernels/GROUP.pkir.yaml document.',
+      files: ['src/nomad/pkir/models.py', 'examples/qkv_proj.pkir.yaml'],
+      command: 'uv run nomad scaffold results/runs/demo qkv_proj'
+    },
+    {
+      id: 'gates', name: 'Gates', note: 'G0 → G5',
+      status: 'partial', statusLabel: 'G0-G3 real',
+      body: 'G0 checks YAML. G1 checks plan legality, types, capabilities and capacity. G2 checks slot discipline. G3 lowers. G4 runs the differential test. G5 times the kernel.',
+      input: 'The plan, the PKIR files and the device spec.',
+      output: 'A bounded diagnostic report or an admitted snapshot.',
+      files: ['src/nomad/harness/check.py', 'src/nomad/verifier/__init__.py', 'src/nomad/difftest/groups.py'],
+      command: 'uv run nomad check results/runs/demo --upto G3'
+    },
+    {
+      id: 'lower', name: 'Lowering', note: 'CUDA template',
+      status: 'works', statusLabel: 'QKV',
+      body: 'The tiled-GEMM template reads the document and emits CUDA. It preserves declared edges, pads, masks and strides. The QKV source is 6,893 bytes and the PTX is 22,933 bytes.',
+      input: 'A validated QKV PKIR region.',
+      output: 'lowered/qkv_proj.cu and lowered/qkv_proj.ptx.',
+      files: ['src/nomad/lowering/cuda/tiled_gemm.py', 'src/nomad/harness/lower.py'],
+      command: 'uv run nomad lower results/runs/demo --ptx'
+    },
+    {
+      id: 'runtime', name: 'Difftest + time', note: 'G4/G5',
+      status: 'partial', statusLabel: 'GPU pending',
+      body: 'G4 builds the extension and compares every bound shape against F.linear at atol = rtol = 2e-2. G5 measures with CUDA events. On this Mac, G4 returns D-UNAVAILABLE because there is no CUDA runtime.',
+      input: 'The lowered extension and the task shape table.',
+      output: 'Per-shape errors, timing, speedup and geomean.',
+      files: ['src/nomad/difftest/groups.py', 'src/nomad/harness/check.py', 'tests/gpu/test_pipeline_gpu.py'],
+      command: 'uv run nomad check results/runs/demo --upto G5'
+    },
+    {
+      id: 'snapshot', name: 'Snapshot', note: 'audit trail',
+      status: 'works', statusLabel: 'working',
+      body: 'Every admission copies the plan, task, graph, DeviceSpec, catalog, kernels, diagnostics and lowered artifacts into snapshots/NNN. submit closes the run and chooses the admitted snapshot with metrics.',
+      input: 'An admitted workspace.',
+      output: 'A reproducible snapshot and result.json.',
+      files: ['src/nomad/harness/workspace.py'],
+      command: 'uv run nomad submit results/runs/demo'
+    }
+  ];
+
+  const gates = [
+    {
+      id: 'G0', name: 'Parse', status: 'works', question: 'Is the YAML valid and schema-correct?',
+      body: 'The plan and every PKIR file are parsed with pydantic. Unknown keys are errors, not ignored. This is the cheapest gate and it catches most model formatting failures.',
+      codes: ['P-SCHEMA', 'P-UNKNOWN-KEY'],
+      now: 'Implemented and used on every check.'
+    },
+    {
+      id: 'G1', name: 'Static', status: 'works', question: 'Is the plan legal for this device?',
+      body: 'G1 checks the partition, pattern, order, layouts, rewrite side conditions, tensor names, slices, placement and capacity. It is structural, not numeric.',
+      codes: ['S-PARTITION', 'S-ORDER', 'S-PATTERN', 'S-LAYOUT', 'S-REWRITE', 'S-CAPABILITY', 'S-SLICE', 'S-PLACEMENT', 'S-CAPACITY', 'S-UNSUPPORTED'],
+      now: 'Implemented. It caught 22 of 22 structural mutants in the earlier study.'
+    },
+    {
+      id: 'G2', name: 'Verify', status: 'partial', question: 'Are the producer/consumer edges complete?',
+      body: 'G2 checks async copies for full/free publication, matmul consumption and release, and epilogue publication and store. It does not yet check symbolic equivalence.',
+      codes: ['V-OOB', 'V-RACE', 'V-DEADLOCK (reserved)', 'V-EQUIV (reserved)'],
+      now: 'Slot discipline is implemented. Symbolic equivalence is the largest correctness gap.'
+    },
+    {
+      id: 'G3', name: 'Lower', status: 'works', question: 'Can the region be realized?',
+      body: 'G3 matches the tiled-GEMM template, writes lowered/GROUP.cu and emits .ptx when nvcc is available. G3 does not build the extension; G4 does that on the GPU box.',
+      codes: ['L-TARGET', 'L-TEMPLATE', 'L-RESOURCE', 'L-TOOLCHAIN', 'L-COMPILE'],
+      now: 'QKV admitted at G3 on CPU. PTX is 22,933 bytes for sm_86.'
+    },
+    {
+      id: 'G4', name: 'Difftest', status: 'partial', question: 'Does the kernel compute the reference result?',
+      body: 'G4 builds the extension and compares every bound shape against F.linear at atol = rtol = 2e-2. A mismatch names the shape, the number of bad elements and the worst index.',
+      codes: ['D-MISMATCH', 'D-CRASH', 'D-UNAVAILABLE', 'D-NONFINITE (reserved)'],
+      now: 'Code is implemented. It has not run on a GPU. On this Mac it rejects with D-UNAVAILABLE.'
+    },
+    {
+      id: 'G5', name: 'Time', status: 'partial', question: 'How fast is it?',
+      body: 'G5 runs the kernel with CUDA events and reports per-shape speedup against the PyTorch baseline. Timing never rejects. A slow admitted kernel is still admitted.',
+      codes: ['no rejection code'],
+      now: 'Code is implemented. The geomean and per-shape numbers are waiting on the GPU box.'
+    }
+  ];
+
+  const statusRows = [
+    ['DeviceSpec sm86', 'works', 'Works', 'Complete for the A40; shared capacity corrected to 102,400 B.'],
+    ['DeviceSpec trn2', 'missing', 'Missing', 'No trn2 YAML and no capability query.'],
+    ['PyTorch graph import', 'partial', 'Partial', 'One bias-free linear and the reference block. Arbitrary models need graph.yaml.'],
+    ['Plan + catalog', 'works', 'Works', 'Four patterns, three rewrites, two layout families, eight feasible rewrite sequences.'],
+    ['PKIR v0.1', 'works', 'Works', 'Fill, copy, for and matmul. QKV is the worked example.'],
+    ['G0 parse', 'works', 'Works', 'Plan and every named PKIR file.'],
+    ['G1 static', 'works', 'Works', 'Partition, pattern, order, layout, rewrites, slices, placement, capacity.'],
+    ['G2 verify', 'partial', 'Partial', 'Slot discipline only. No symbolic equivalence.'],
+    ['G3 lowering', 'works', 'Works', 'QKV CUDA source and PTX. G4 builds the extension.'],
+    ['G4 difftest', 'partial', 'Partial', 'Code is wired; the GPU run is pending.'],
+    ['G5 timing', 'partial', 'Partial', 'Code is wired; the GPU run is pending.'],
+    ['Full block lowering', 'missing', 'Missing', 'norm, split, attn and merge are S-UNSUPPORTED.'],
+    ['NKI / Trainium', 'missing', 'Missing', 'Stub only.'],
+    ['GPU validation', 'missing', 'Missing', 'No RTX 3070/A40 run yet.'],
+    ['Mutation study under G2-G5', 'missing', 'Missing', 'The old G1-only study is not the final gate quality.'],
+    ['Block latency + ablations', 'missing', 'Missing', 'No end-to-end block numbers yet.']
+  ];
+
+  const decisions = [
+    {
+      n: '01', tag: 'load-bearing', title: 'Start with one fused attention block',
+      problem: 'A general graph compiler is unbounded. One block exercises fusion, layout, reductions, sync and attention.',
+      naive: 'Optimize arbitrary PyTorch models. The reference, verification and evaluation become impossible for one semester.',
+      choice: 'Fix RMSNorm → QKV → SDPA → out-proj, one fp16 shape table and one device target.',
+      cost: 'The result is not general. A new block needs a new graph and often a new lowering.',
+      reverse: 'Reverse if the block is too small to show graph-level gains or a second block is needed to prove generality.'
+    },
+    {
+      n: '02', tag: 'load-bearing', title: 'Portability lives in DeviceSpec',
+      problem: 'CUDA and NKI differ in memory, sync, copy engines and MMA shapes. The agent must not see those differences.',
+      naive: 'Let the agent emit CUDA or NKI directly. It couples every decision to one vendor.',
+      choice: 'DeviceSpec is the capability boundary. PKIR reads only the keys in pkir-spec §10.',
+      cost: 'The abstraction can leak. trn2 is not implemented, so the portability claim is not yet measured.',
+      reverse: 'Reverse if the two devices need fundamentally different IRs. The fallback is to restrict Trainium to softmax.'
+    },
+    {
+      n: '03', tag: 'load-bearing', title: 'PKIR is tile-level, not thread-level',
+      problem: 'The agent should choose tiles, staging, roles and sync edges. It should not choose individual threads.',
+      naive: 'Expose thread-level CUDA in the IR. The search space explodes and verification becomes a CUDA verifier.',
+      choice: 'PKIR has tiles, buffers, roles, stages and explicit wait/signal edges. The lowering maps warps and threads.',
+      cost: 'v0.1 cannot express reductions, exp, rsqrt, running softmax state or layout steps. That is the full-block blocker.',
+      reverse: 'Reverse if an optimization needs thread control. Add a capability with a semantic contract, not raw CUDA.'
+    },
+    {
+      n: '04', tag: 'load-bearing', title: 'Template lowering first',
+      problem: 'A general CUDA code generator is a compiler project by itself.',
+      naive: 'Generate arbitrary CUDA from first principles. It is hard to verify and hard to debug.',
+      choice: 'Match a canonical tiled-GEMM region and emit a known-good CUDA template. Preserve every declared pad, mask, edge and stride.',
+      cost: 'Only the GEMM template exists. The agent can change parameters, not invent a new schedule shape.',
+      reverse: 'Reverse if the template set becomes a second compiler. Then a real code generator is cheaper.'
+    },
+    {
+      n: '05', tag: 'load-bearing', title: 'Agent edits plans and PKIR, never CUDA',
+      problem: 'If the agent writes CUDA, the device-independent claim disappears and the verifier can be bypassed.',
+      naive: 'Let the agent write source and run nvcc. Fast to prototype, unsafe to admit.',
+      choice: 'Agent edits plan.yaml and kernels/*.pkir.yaml. Harness owns lowering and compilation. Read-only files are hashed.',
+      cost: 'The agent cannot express an operation the IR lacks. That is the current full-block blocker.',
+      reverse: 'Reverse only with a reviewed IR extension, not a raw-source escape hatch.'
+    },
+    {
+      n: '06', tag: 'load-bearing', title: 'Ordered gates with localized diagnostics',
+      problem: 'An LLM can produce plausible YAML that is structurally valid and numerically wrong.',
+      naive: 'One allclose check at the end. It gives a single pass/fail and no guidance.',
+      choice: 'G0 parse → G1 static → G2 verify → G3 lower → G4 difftest → G5 timing. Every failure stops the stack with file, line and JSON Pointer.',
+      cost: 'Latency and implementation work. The old G1-only study caught 22/22 structural and 0/6 semantic mutants.',
+      reverse: 'Reverse if the diagnostics are too noisy. The report is bounded to five items for that reason.'
+    },
+    {
+      n: '07', tag: 'load-bearing', title: 'G2 starts with slot discipline',
+      problem: 'The proposal promises memory safety, race/deadlock freedom and equivalence. Implementing all three at once delays the vertical slice.',
+      naive: 'Claim G2 is complete because the example passes.',
+      choice: 'Implement the sync half first. Check every declared slot edge. Leave numeric equivalence to G4. Mark symbolic equivalence reserved.',
+      cost: 'A missing pad or mask passes G2. G4 catches it only on sampled shapes. The system cannot yet claim soundness for all shapes.',
+      reverse: 'Reverse when G4 sampling becomes the only correctness evidence. Then the equivalence core moves onto the critical path.'
+    },
+    {
+      n: '08', tag: 'load-bearing', title: 'Canonical graph plus structural adapter',
+      problem: 'The agent should not depend on Torch export internals.',
+      naive: 'Let the agent read the FX graph directly. It sees implementation details and loses portability.',
+      choice: 'graph.yaml is stable and readable. The adapter recognizes one bias-free linear and the reference block. Other graphs supply graph.yaml.',
+      cost: 'Arbitrary models do not work. The block match is structural and can misclassify a similar graph.',
+      reverse: 'Reverse when a second real model enters scope. Then the adapter needs shape and semantic validation.'
+    },
+    {
+      n: '09', tag: 'convention', title: 'Catalog-limited action space',
+      problem: 'The agent needs a finite, reviewable set of graph actions.',
+      naive: 'Allow any rewrite or fusion the model invents. Hard to validate and reproduce.',
+      choice: 'Four patterns, three rewrites, two layout families. Catalog entries are added by PR, never by the agent.',
+      cost: 'The search space is small. explore enumerates eight rewrite sequences; it does not enumerate bindings or arbitrary grouping.',
+      reverse: 'Reverse if the agent consistently finds no improvement because the catalog is too small.'
+    },
+    {
+      n: '10', tag: 'tunable', title: 'Analytic cost model',
+      problem: 'The agent needs feedback before a GPU is available.',
+      naive: 'Run every candidate. Slow and unavailable on the laptop.',
+      choice: 'Compute FLOPs, bytes, footprint and occupancy from PKIR plus DeviceSpec.',
+      cost: 'The numbers are estimates. The model is not calibrated against measured throughput.',
+      reverse: 'Reverse if measured timing and the model disagree by more than a useful margin.'
+    },
+    {
+      n: '11', tag: 'convention', title: 'CPU can stop at G3',
+      problem: 'The development laptop has no NVIDIA GPU.',
+      naive: 'Skip lowering tests on the laptop, or fake success.',
+      choice: 'G3 writes source on any machine. G4 returns D-UNAVAILABLE without CUDA. A GPU test is ready.',
+      cost: 'A CPU checkout can admit a source artifact without executing it. That is weaker than the contract.',
+      reverse: 'Reverse when CI gains a GPU runner. Then G4/G5 become mandatory in CI.'
+    },
+    {
+      n: '12', tag: 'convention', title: 'Complete-file agent updates',
+      problem: 'The agent must communicate changes without a complex patch protocol.',
+      naive: 'Ask for a structured diff. Small models often fail at diff syntax.',
+      choice: 'The model returns complete YAML files, each with a FILE header. The driver validates the path and parses the YAML.',
+      cost: 'Token-heavy. A model can corrupt a large file while fixing one field. The local 2.9B model did exactly that.',
+      reverse: 'Reverse if a model reliably produces smaller patches. A patch protocol would reduce tokens and corruption.'
+    }
+  ];
+
+  const $ = (sel, root = document) => root.querySelector(sel);
+  const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
+
+  function badge(status, label) {
+    return `<span class="badge ${status}">${label}</span>`;
+  }
+
+  function renderPipeline() {
+    const pipeline = $('#pipeline');
+    pipeline.innerHTML = stages.map((s, i) => `
+      <button class="stage ${i === 0 ? 'active' : ''}" type="button" role="tab" aria-selected="${i === 0}" data-stage="${s.id}">
+        <span class="stage-index">${String(i + 1).padStart(2, '0')}</span>
+        <span class="stage-name">${s.name}</span>
+        <span class="stage-note">${s.note}</span>
+        <span class="stage-arrow" aria-hidden="true">→</span>
+      </button>
+    `).join('');
+    $$('.stage', pipeline).forEach(btn => btn.addEventListener('click', () => selectStage(btn.dataset.stage)));
+  }
+
+  function selectStage(id) {
+    const stage = stages.find(s => s.id === id);
+    if (!stage) return;
+    $$('.stage').forEach(btn => {
+      const on = btn.dataset.stage === id;
+      btn.classList.toggle('active', on);
+      btn.setAttribute('aria-selected', String(on));
+    });
+    $('#stageDetail').innerHTML = `
+      <div>
+        <div class="status-line">${badge(stage.status, stage.statusLabel)}<span class="badge info">${stage.id}</span></div>
+        <h3>${stage.name}</h3>
+        <p>${stage.body}</p>
+        <div class="stage-side" style="border:0;padding:0;margin-top:16px">
+          <h4>Command</h4>
+          <p class="mono">${stage.command}</p>
+        </div>
+      </div>
+      <div>
+        <div class="stage-side">
+          <h4>Input</h4><p>${stage.input}</p>
+        </div>
+        <div class="stage-side">
+          <h4>Output</h4><p>${stage.output}</p>
+        </div>
+        <div class="stage-side">
+          <h4>Files</h4><ul>${stage.files.map(f => `<li><span class="mono">${f}</span></li>`).join('')}</ul>
+        </div>
+      </div>
+    `;
+  }
+
+  function renderGates() {
+    const rail = $('#gateRail');
+    rail.innerHTML = gates.map((g, i) => `
+      <button class="gate-chip ${i === 0 ? 'active' : ''}" type="button" role="tab" aria-selected="${i === 0}" data-gate="${g.id}" data-status="${g.status}">
+        <span class="gate-id">${g.id}</span>
+        <span class="gate-name">${g.name}</span>
+        <span class="gate-dot" aria-hidden="true"></span>
+      </button>
+    `).join('');
+    $$('.gate-chip', rail).forEach(btn => btn.addEventListener('click', () => selectGate(btn.dataset.gate)));
+  }
+
+  function selectGate(id) {
+    const gate = gates.find(g => g.id === id);
+    if (!gate) return;
+    $$('.gate-chip').forEach(btn => {
+      const on = btn.dataset.gate === id;
+      btn.classList.toggle('active', on);
+      btn.setAttribute('aria-selected', String(on));
+    });
+    $('#gateDetail').innerHTML = `
+      <div class="status-line">${badge(gate.status, gate.status === 'works' ? 'implemented' : gate.status === 'partial' ? 'partial' : 'not implemented')}<span class="badge violet">${gate.id}</span></div>
+      <h3>${gate.id} · ${gate.name}</h3>
+      <p class="gate-question">${gate.question}</p>
+      <p>${gate.body}</p>
+      <div class="gate-codes">${gate.codes.map(c => `<span class="mono">${c}</span>`).join('')}</div>
+      <div class="gate-now"><strong>Now</strong><span>${gate.now}</span></div>
+    `;
+  }
+
+  function renderStatus() {
+    $('#statusList').innerHTML = statusRows.map(([name, state, label, note]) => `
+      <div class="status-row" data-state="${state}" data-search="${(name + ' ' + note).toLowerCase()}">
+        <div class="status-name">${name}</div>
+        ${badge(state, label)}
+        <div class="status-note">${note}</div>
+      </div>
+    `).join('');
+  }
+
+  function renderDecisions() {
+    $('#decisionList').innerHTML = decisions.map(d => `
+      <details class="decision" data-tag="${d.tag}" data-search="${(d.title + ' ' + d.problem + ' ' + d.choice).toLowerCase()}">
+        <summary>
+          <span class="decision-num">${d.n}</span>
+          <span class="decision-title">${d.title}<span>${d.problem}</span></span>
+          <span class="decision-tag">${d.tag}</span>
+        </summary>
+        <div class="decision-body">
+          <div class="decision-block"><h4>Problem</h4><p>${d.problem}</p></div>
+          <div class="decision-block"><h4>Naive approach</h4><p>${d.naive}</p></div>
+          <div class="decision-block strong"><h4>Choice</h4><p>${d.choice}</p></div>
+          <div class="decision-block"><h4>Cost</h4><p>${d.cost}</p></div>
+          <div class="decision-block"><h4>Reverse if</h4><p>${d.reverse}</p></div>
+        </div>
+      </details>
+    `).join('');
+  }
+
+  function filterStatus() {
+    const state = $('#statusFilters .filter.active')?.dataset.filter || 'all';
+    const q = ($('#statusSearch').value || '').toLowerCase().trim();
+    $$('.status-row').forEach(row => {
+      const stateOk = state === 'all' || row.dataset.state === state;
+      const searchOk = !q || row.dataset.search.includes(q);
+      row.hidden = !(stateOk && searchOk);
+    });
+  }
+
+  function filterDecisions() {
+    const tag = $('#decisionFilters .filter.active')?.dataset.filter || 'all';
+    const q = ($('#decisionSearch').value || '').toLowerCase().trim();
+    $$('.decision').forEach(card => {
+      const tagOk = tag === 'all' || card.dataset.tag === tag;
+      const searchOk = !q || card.dataset.search.includes(q);
+      card.hidden = !(tagOk && searchOk);
+    });
+  }
+
+  function initFilters() {
+    $$('#statusFilters .filter').forEach(btn => btn.addEventListener('click', () => {
+      $$('#statusFilters .filter').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      filterStatus();
+    }));
+    $('#statusSearch').addEventListener('input', filterStatus);
+    $$('#decisionFilters .filter').forEach(btn => btn.addEventListener('click', () => {
+      $$('#decisionFilters .filter').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      filterDecisions();
+    }));
+    $('#decisionSearch').addEventListener('input', filterDecisions);
+  }
+
+  function initTheme() {
+    const btn = $('#themeBtn');
+    const saved = (() => { try { return localStorage.getItem('nomad-theme'); } catch { return null; } })();
+    if (saved === 'light') document.documentElement.dataset.theme = 'light';
+    const sync = () => {
+      const light = document.documentElement.dataset.theme === 'light';
+      btn.textContent = light ? 'Dark' : 'Light';
+      try { localStorage.setItem('nomad-theme', light ? 'light' : 'dark'); } catch {}
+    };
+    sync();
+    btn.addEventListener('click', () => {
+      document.documentElement.dataset.theme = document.documentElement.dataset.theme === 'light' ? 'dark' : 'light';
+      sync();
+    });
+  }
+
+  function initFocus() {
+    const btn = $('#focusBtn');
+    const exit = $('#focusExit');
+    const set = (on) => {
+      document.body.classList.toggle('focus-mode', on);
+      btn.setAttribute('aria-pressed', String(on));
+    };
+    btn.addEventListener('click', () => set(!document.body.classList.contains('focus-mode')));
+    exit.addEventListener('click', () => set(false));
+  }
+
+  function showToast(text) {
+    const el = $('#toast');
+    el.textContent = text;
+    el.classList.add('show');
+    clearTimeout(showToast._t);
+    showToast._t = setTimeout(() => el.classList.remove('show'), 1600);
+  }
+
+  async function copyText(text) {
+    try {
+      await navigator.clipboard.writeText(text);
+      showToast('Copied to clipboard');
+    } catch {
+      const area = document.createElement('textarea');
+      area.value = text;
+      area.style.position = 'fixed';
+      area.style.opacity = '0';
+      document.body.appendChild(area);
+      area.select();
+      try { document.execCommand('copy'); showToast('Copied to clipboard'); }
+      catch { showToast('Copy failed'); }
+      area.remove();
+    }
+  }
+
+  function initCopy() {
+    document.addEventListener('click', (event) => {
+      const btn = event.target.closest('[data-copy]');
+      if (!btn) return;
+      copyText(btn.dataset.copy);
+    });
+  }
+
+  function initScrollSpy() {
+    const links = $$('.side-nav a');
+    const sections = links.map(a => document.querySelector(a.getAttribute('href'))).filter(Boolean);
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (!entry.isIntersecting) return;
+        links.forEach(a => a.classList.toggle('active', a.getAttribute('href') === '#' + entry.target.id));
+      });
+    }, { rootMargin: '-25% 0px -65% 0px', threshold: 0 });
+    sections.forEach(sec => observer.observe(sec));
+  }
+
+  function initProgress() {
+    const bar = $('#progressBar');
+    const update = () => {
+      const h = document.documentElement;
+      const max = h.scrollHeight - h.clientHeight;
+      const pct = max > 0 ? (h.scrollTop / max) * 100 : 0;
+      bar.style.width = pct.toFixed(2) + '%';
+    };
+    document.addEventListener('scroll', update, { passive: true });
+    window.addEventListener('resize', update);
+    update();
+  }
+
+  function initReveal() {
+    if (!('IntersectionObserver' in window)) {
+      $$('.reveal').forEach(el => el.classList.add('in'));
+      return;
+    }
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('in');
+          observer.unobserve(entry.target);
+        }
+      });
+    }, { rootMargin: '0px 0px -8% 0px', threshold: 0.05 });
+    $$('.reveal').forEach(el => observer.observe(el));
+  }
+
+  function initNav() {
+    const toggle = $('#navToggle');
+    const sidebar = $('#sidebar');
+    toggle.addEventListener('click', () => {
+      const open = document.body.classList.toggle('nav-open');
+      toggle.setAttribute('aria-expanded', String(open));
+    });
+    $$('.side-nav a').forEach(a => a.addEventListener('click', () => {
+      document.body.classList.remove('nav-open');
+      toggle.setAttribute('aria-expanded', 'false');
+    }));
+  }
+
+  function initHotkeys() {
+    document.addEventListener('keydown', (event) => {
+      const tag = (event.target.tagName || '').toLowerCase();
+      if (tag === 'input' || tag === 'textarea') return;
+      if (event.key === 't' || event.key === 'T') $('#themeBtn').click();
+      if (event.key === 'f' || event.key === 'F') $('#focusBtn').click();
+      if (event.key === 'p' || event.key === 'P') window.print();
+      if (event.key === '/') { event.preventDefault(); $('#decisionSearch').focus(); }
+    });
+  }
+
+  renderPipeline();
+  selectStage(stages[0].id);
+  renderGates();
+  selectGate(gates[0].id);
+  renderStatus();
+  renderDecisions();
+  initFilters();
+  initTheme();
+  initFocus();
+  initCopy();
+  initScrollSpy();
+  initProgress();
+  initReveal();
+  initNav();
+  initHotkeys();
+  // Fallback: never leave a section invisible if the observer or a full-page capture misses it.
+  setTimeout(() => $$('.reveal').forEach(el => el.classList.add('in')), 1200);
+  $('#printBtn').addEventListener('click', () => window.print());
+</script>
+</body>
+</html>
