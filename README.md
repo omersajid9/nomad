@@ -65,7 +65,7 @@ uv run nomad explore results/runs/002          # feasible rewrite subsets x orde
 uv run python experiments/single_pass.py --task qkv_proj --run results/runs/pass-qkv
 
 # Drive the agent through OpenRouter (default model: deepseek/deepseek-v4-flash)
-export OPENROUTER_API_KEY=...   # never commit the key
+export OPENROUTER_API_KEY=...   # or put it in a git-ignored .env
 uv run nomad agent results/runs/001 --upto G1 --max-steps 4
 ```
 

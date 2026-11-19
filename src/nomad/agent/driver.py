@@ -45,6 +45,25 @@ OPENROUTER_MODEL = "deepseek/deepseek-v4-flash"
 OPENROUTER_API_KEY_ENV = "OPENROUTER_API_KEY"
 
 
+def _load_local_env() -> None:
+    """Load a git-ignored .env from the current workspace, without overriding real env vars."""
+    if os.environ.get("NOMAD_NO_DOTENV") == "1":
+        return
+    candidates = (Path.cwd() / ".env", Path(__file__).resolve().parents[3] / ".env")
+    path = next((candidate for candidate in candidates if candidate.is_file()), None)
+    if path is None:
+        return
+    for raw in path.read_text(encoding="utf-8").splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        key = key.removeprefix("export ").strip()
+        value = value.strip().strip("'").strip('"')
+        if key and key not in os.environ:
+            os.environ[key] = value
+
+
 class AgentError(RuntimeError):
     """The model did not produce a usable, safe update."""
 
@@ -292,6 +311,7 @@ class OpenRouterCompleter(OpenAICompleter):
         temperature: float = 0.0,
         timeout: float = 180.0,
     ) -> None:
+        _load_local_env()
         resolved = api_key or os.environ.get(OPENROUTER_API_KEY_ENV)
         if not resolved:
             raise AgentError(

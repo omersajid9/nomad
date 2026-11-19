@@ -130,10 +130,10 @@ with the result.
 
 The driver speaks the OpenAI-compatible chat protocol and only accepts edits to `plan.yaml` and
 `kernels/*.pkir.yaml`. Its defaults are OpenRouter and `deepseek/deepseek-v4-flash`; the key is
-read from `OPENROUTER_API_KEY` and is never written to the workspace or a log.
+read from `OPENROUTER_API_KEY` or a git-ignored `.env` and is never written to the workspace or a log.
 
 ```sh
-export OPENROUTER_API_KEY=...   # your OpenRouter key; do not commit it
+export OPENROUTER_API_KEY=...   # or put it in a git-ignored .env; never commit it
 AGENT_RUN=results/runs/gpu-agent
 uv run nomad init qkv_proj "$AGENT_RUN" --start unfused
 

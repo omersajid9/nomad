@@ -126,6 +126,7 @@ def test_openrouter_defaults(monkeypatch):
 
 
 def test_openrouter_requires_key(monkeypatch):
+    monkeypatch.setenv("NOMAD_NO_DOTENV", "1")
     monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
     with pytest.raises(AgentError, match="OPENROUTER_API_KEY"):
         OpenRouterCompleter()
